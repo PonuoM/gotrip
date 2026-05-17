@@ -1,0 +1,10 @@
+{
+  "name": "GoTrip",
+  "short_name": "GoTrip",
+  "description": "Plan trips with your crew. Split costs. Make memories.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#E63946"
+}

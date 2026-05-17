@@ -1,0 +1,95 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
+import { BottomNav } from '@/components/BottomNav'
+import { ExpensesClient } from './client'
+
+export default async function TripExpensesPage({ params }: { params: { id: string } }) {
+  const supabase = createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect(`/login?redirect=/trips/${params.id}/expenses`)
+
+  const { data: trip } = await supabase
+    .from('trips')
+    .select('id, name, default_currency, budget_amount, owner_id')
+    .eq('id', params.id)
+    .single()
+
+  if (!trip) notFound()
+
+  const { data: myMembership } = await supabase
+    .from('trip_members')
+    .select('id, status, role')
+    .eq('trip_id', params.id)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!myMembership || myMembership.status !== 'approved') {
+    redirect(`/trips/${params.id}`)
+  }
+
+  const canEdit = myMembership.role === 'owner' || myMembership.role === 'editor'
+
+  const [
+    { data: expenses },
+    { data: members },
+    { data: categories },
+    { data: debts },
+  ] = await Promise.all([
+    supabase
+      .from('expenses')
+      .select(`
+        id, description, amount, currency, category_id, paid_by, paid_at, notes,
+        expense_splits (member_id, share_amount, is_settled)
+      `)
+      .eq('trip_id', params.id)
+      .order('paid_at', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('trip_members')
+      .select('id, role, user_id, user_profiles (display_name)')
+      .eq('trip_id', params.id)
+      .eq('status', 'approved'),
+    supabase
+      .from('expense_categories')
+      .select('id, label_en, icon, color')
+      .eq('is_active', true)
+      .order('sort_order'),
+    supabase.rpc('calculate_trip_debts', { p_trip_id: params.id }),
+  ])
+
+  return (
+    <main className="min-h-screen bg-brand-white pb-24">
+      <div className="max-w-md mx-auto p-6">
+
+        <Link href={`/trips/${params.id}`} className="text-xs font-bold tracking-[2px] text-gray-500 no-underline">
+          ← {trip.name.toUpperCase()}
+        </Link>
+
+        <div className="mt-4 mb-6">
+          <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
+            ฿ SPLIT THE BILL · ★ ★ ★
+          </div>
+          <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
+            EXPENSES.
+          </h1>
+          <div className="brand-underline" />
+        </div>
+
+        <ExpensesClient
+          tripId={params.id}
+          currency={trip.default_currency}
+          budget={trip.budget_amount ? Number(trip.budget_amount) : null}
+          myMemberId={myMembership.id}
+          canEdit={canEdit}
+          expenses={expenses || []}
+          members={members || []}
+          categories={categories || []}
+          debts={debts || []}
+        />
+      </div>
+      <BottomNav />
+    </main>
+  )
+}
