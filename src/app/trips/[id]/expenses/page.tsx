@@ -51,7 +51,7 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
       .order('created_at', { ascending: false }),
     supabase
       .from('trip_members')
-      .select('id, role, user_id, user_profiles (display_name)')
+      .select('id, role, user_id')
       .eq('trip_id', params.id)
       .eq('status', 'approved'),
     supabase
@@ -61,6 +61,22 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
       .order('sort_order'),
     supabase.rpc('calculate_trip_debts', { p_trip_id: params.id }),
   ])
+
+  // Hydrate display names separately (no direct FK trip_members.user_id → user_profiles)
+  const memberUserIds = (members || []).map((m: any) => m.user_id)
+  const { data: memberProfiles } = memberUserIds.length > 0
+    ? await supabase
+        .from('user_profiles')
+        .select('id, display_name')
+        .in('id', memberUserIds)
+    : { data: [] as any[] }
+  const profilesById = Object.fromEntries(
+    (memberProfiles || []).map((p: any) => [p.id, p])
+  )
+  const membersHydrated = (members || []).map((m: any) => ({
+    ...m,
+    user_profiles: profilesById[m.user_id] || null,
+  }))
 
   return (
     <main className="min-h-screen bg-brand-white pb-24">
@@ -87,7 +103,7 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
           myMemberId={myMembership.id}
           canEdit={canEdit}
           expenses={expenses || []}
-          members={members || []}
+          members={membersHydrated}
           categories={categories || []}
           debts={debts || []}
           lang={lang}

@@ -45,10 +45,26 @@ export default async function ChecklistPage({ params }: { params: { id: string }
       .order('created_at', { ascending: true }),
     supabase
       .from('trip_members')
-      .select('id, user_profiles (display_name)')
+      .select('id, user_id')
       .eq('trip_id', params.id)
       .eq('status', 'approved'),
   ])
+
+  // Hydrate display names separately (no direct FK on trip_members.user_id)
+  const memberUserIds = (members || []).map((m: any) => m.user_id)
+  const { data: memberProfiles } = memberUserIds.length > 0
+    ? await supabase
+        .from('user_profiles')
+        .select('id, display_name')
+        .in('id', memberUserIds)
+    : { data: [] as any[] }
+  const profilesById = Object.fromEntries(
+    (memberProfiles || []).map((p: any) => [p.id, p])
+  )
+  const membersHydrated = (members || []).map((m: any) => ({
+    ...m,
+    user_profiles: profilesById[m.user_id] || null,
+  }))
 
   return (
     <main className="min-h-screen bg-brand-white pb-24">
@@ -72,7 +88,7 @@ export default async function ChecklistPage({ params }: { params: { id: string }
           tripId={params.id}
           canEdit={canEdit}
           checklists={checklists || []}
-          members={members || []}
+          members={membersHydrated}
           lang={lang}
         />
       </div>

@@ -40,16 +40,13 @@ export default async function TripDetailPage({ params }: { params: { id: string 
 
   // Fetch in parallel
   const [
-    { data: members },
+    { data: rawMembers },
     { count: activityCount },
     { data: expenses },
   ] = await Promise.all([
     supabase
       .from('trip_members')
-      .select(`
-        id, role, status, user_id,
-        user_profiles (display_name, avatar_url)
-      `)
+      .select('id, role, status, user_id')
       .eq('trip_id', params.id),
     supabase
       .from('activities')
@@ -60,6 +57,23 @@ export default async function TripDetailPage({ params }: { params: { id: string 
       .select('amount')
       .eq('trip_id', params.id),
   ])
+
+  // Hydrate display names — no direct FK from trip_members.user_id to user_profiles
+  const userIds = (rawMembers || []).map((m: any) => m.user_id)
+  const { data: profiles } = userIds.length > 0
+    ? await supabase
+        .from('user_profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', userIds)
+    : { data: [] as any[] }
+
+  const profilesById = Object.fromEntries(
+    (profiles || []).map((p: any) => [p.id, p])
+  )
+  const members = (rawMembers || []).map((m: any) => ({
+    ...m,
+    user_profiles: profilesById[m.user_id] || null,
+  }))
 
   const totalSpent = (expenses || []).reduce((sum, e) => sum + Number(e.amount), 0)
   const days = daysUntil(trip.start_date)

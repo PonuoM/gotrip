@@ -23,12 +23,9 @@ export default async function MembersPage({ params }: { params: { id: string } }
 
   const isOwner = trip.owner_id === user.id
 
-  const { data: members } = await supabase
+  const { data: rawMembers } = await supabase
     .from('trip_members')
-    .select(`
-      id, role, status, user_id, joined_at,
-      user_profiles (display_name, avatar_url)
-    `)
+    .select('id, role, status, user_id, joined_at')
     .eq('trip_id', params.id)
     .order('joined_at', { ascending: true })
 
@@ -40,8 +37,25 @@ export default async function MembersPage({ params }: { params: { id: string } }
         .order('created_at', { ascending: false })
     : { data: [] as any[] }
 
-  const approved = (members || []).filter((m: any) => m.status === 'approved')
-  const pending  = (members || []).filter((m: any) => m.status === 'pending')
+  // Hydrate profiles separately (no direct FK trip_members.user_id → user_profiles)
+  const userIds = (rawMembers || []).map((m: any) => m.user_id)
+  const { data: profiles } = userIds.length > 0
+    ? await supabase
+        .from('user_profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', userIds)
+    : { data: [] as any[] }
+
+  const profilesById = Object.fromEntries(
+    (profiles || []).map((p: any) => [p.id, p])
+  )
+  const members = (rawMembers || []).map((m: any) => ({
+    ...m,
+    user_profiles: profilesById[m.user_id] || null,
+  }))
+
+  const approved = members.filter((m: any) => m.status === 'approved')
+  const pending  = members.filter((m: any) => m.status === 'pending')
 
   return (
     <main className="min-h-screen bg-brand-white pb-24">
