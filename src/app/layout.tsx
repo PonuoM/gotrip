@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { getLang } from '@/lib/i18n.server'
 import { LangProvider } from '@/components/LangProvider'
+import { RouteProgress } from '@/components/RouteProgress'
 
 export const metadata: Metadata = {
   title: 'GoTrip — Plan trips with your crew',
@@ -37,7 +38,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body className="min-h-screen">
-        <LangProvider lang={lang}>{children}</LangProvider>
+        <LangProvider lang={lang}>
+          <RouteProgress />
+          {children}
+        </LangProvider>
       </body>
     </html>
   )

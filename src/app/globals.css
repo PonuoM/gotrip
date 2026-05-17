@@ -142,4 +142,46 @@
     70%  { transform: scale(1.4); opacity: 0;   }
     100% { transform: scale(1.4); opacity: 0;   }
   }
+
+  /* ===== Universal press feedback =====
+     Mobile users need an obvious "I pressed it" cue. Apply to anything
+     interactive (button, anchor, role=button) that doesn't already opt out. */
+  button:not(:disabled),
+  a,
+  [role="button"] {
+    transition: transform 100ms ease, filter 150ms ease, background-color 150ms ease;
+    -webkit-tap-highlight-color: rgba(230, 57, 70, 0.18);
+  }
+  button:not(:disabled):active,
+  a:active,
+  [role="button"]:active {
+    transform: scale(0.96);
+    filter: brightness(0.92);
+  }
+
+  /* Form flash when edit panel opens */
+  .form-flash {
+    animation: form-flash 600ms ease-out;
+  }
+  @keyframes form-flash {
+    0%   { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.6); border-radius: 1rem; }
+    100% { box-shadow: 0 0 0 14px rgba(230, 57, 70, 0); border-radius: 1rem; }
+  }
+
+  /* ===== Top route-loading bar ===== */
+  .route-bar {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #E63946 0%, #FFC107 50%, #E63946 100%);
+    background-size: 200% 100%;
+    z-index: 9999;
+    animation: route-bar 1.2s linear infinite;
+    transform-origin: left;
+    pointer-events: none;
+  }
+  @keyframes route-bar {
+    0%   { background-position: 100% 0; transform: scaleX(0.1); opacity: 0.85; }
+    50%  { transform: scaleX(0.7); opacity: 1; }
+    100% { background-position: 0 0;   transform: scaleX(1);   opacity: 0.85; }
+  }
 }

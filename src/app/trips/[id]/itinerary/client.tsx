@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
@@ -67,6 +67,14 @@ export function ItineraryClient(props: Props) {
   const supabase = createClient()
 
   const [editing, setEditing] = useState<Partial<Activity> | null>(null)
+  const formRef = useRef<HTMLDivElement | null>(null)
+
+  // Scroll the form into view + flash whenever editing opens
+  useEffect(() => {
+    if (editing && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [editing?.id, editing?.day_number, editing === null])
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -164,16 +172,18 @@ export function ItineraryClient(props: Props) {
 
       {/* Edit form (inline modal-ish) */}
       {editing && (
-        <ActivityForm
-          editing={editing}
-          types={types}
-          tripDays={tripDays}
-          saving={saving}
-          lang={lang}
-          onChange={setEditing}
-          onCancel={() => setEditing(null)}
-          onSubmit={save}
-        />
+        <div ref={formRef} className="form-flash">
+          <ActivityForm
+            editing={editing}
+            types={types}
+            tripDays={tripDays}
+            saving={saving}
+            lang={lang}
+            onChange={setEditing}
+            onCancel={() => setEditing(null)}
+            onSubmit={save}
+          />
+        </div>
       )}
 
       {/* Day sections */}
