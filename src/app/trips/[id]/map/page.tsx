@@ -141,6 +141,7 @@ export default async function MapPage({ params }: { params: { id: string } }) {
           </div>
         ) : (
           <TripMap
+            tripId={params.id}
             activities={pinned}
             crewLive={crewLive}
             myMemberId={myMembership.id}
