@@ -62,10 +62,32 @@ function buildIcon(day: number | null, icon: string) {
   })
 }
 
+// Outlier-aware fit: use median ± MAD to ignore distant pins (e.g. departure
+// airports a country away) when computing the initial viewport.
 function FitBounds({ activities }: { activities: MapActivity[] }) {
   const map = useMap()
   if (activities.length === 0) return null
-  const bounds = L.latLngBounds(activities.map(a => [a.latitude, a.longitude] as [number, number]))
+
+  const lats = activities.map(a => a.latitude).sort((a, b) => a - b)
+  const lngs = activities.map(a => a.longitude).sort((a, b) => a - b)
+  const median = (xs: number[]) => xs[Math.floor(xs.length / 2)]
+  const mLat = median(lats)
+  const mLng = median(lngs)
+
+  // Median absolute deviation
+  const madLat = median(lats.map(x => Math.abs(x - mLat)).sort((a, b) => a - b)) || 0.05
+  const madLng = median(lngs.map(x => Math.abs(x - mLng)).sort((a, b) => a - b)) || 0.05
+  const tol = 6  // pins within ~6× MAD of the median count toward bounds
+
+  const core = activities.filter(
+    a => Math.abs(a.latitude - mLat) <= madLat * tol &&
+         Math.abs(a.longitude - mLng) <= madLng * tol
+  )
+  const pinsForFit = core.length >= 2 ? core : activities
+
+  const bounds = L.latLngBounds(
+    pinsForFit.map(a => [a.latitude, a.longitude] as [number, number])
+  )
   map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
   return null
 }
