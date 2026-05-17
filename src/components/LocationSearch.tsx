@@ -25,11 +25,29 @@ interface Props {
 const PHOTON    = 'https://photon.komoot.io/api'
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 
-// "34.6, 135.5" or "34.6,135.5" or "34.6  135.5"
-const COORD_RE = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/
-
 // Google / OSM share URL — minimal sniff
 const URL_RE   = /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl|(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|osm\.org|www\.openstreetmap\.org)/i
+
+// Robust coord detection — extracts any 2 decimal numbers from input.
+// Handles: "34.6, 135.5", "34.6,135.5", "34.6 135.5", Thai/JP commas,
+// zero-width chars from mobile paste, etc.
+function parseCoords(raw: string): { lat: number; lng: number } | null {
+  // Strip zero-width / invisible chars + N/S/E/W markers
+  const cleaned = raw
+    .replace(/[​-‍﻿]/g, '')
+    .replace(/[°NSEWnsew]/g, '')
+    .trim()
+  // Pull every signed decimal number out
+  const nums = cleaned.match(/-?\d+(?:\.\d+)?/g)
+  if (!nums || nums.length !== 2) return null
+  const lat = Number(nums[0])
+  const lng = Number(nums[1])
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null
+  // Require at least one decimal point — guards against IDs / phone numbers
+  if (!nums.some(n => n.includes('.'))) return null
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
+  return { lat, lng }
+}
 
 export function LocationSearch({
   value, onPick, onChange, placeholder, className, disabled, lang = 'en',
@@ -48,21 +66,8 @@ export function LocationSearch({
     setUrlError('')
     const text = value.trim()
 
-    // 1) Raw coords: instant hit
-    const m = text.match(COORD_RE)
-    if (m) {
-      const lat = Number(m[1])
-      const lng = Number(m[2])
-      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        setCoordHit({ lat, lng })
-        setResults([])
-        setOpen(true)
-        return
-      }
-    }
-    setCoordHit(null)
-
-    // 2) Google / OSM URL: resolve via our API
+    // 1) Google / OSM URL — check BEFORE coords so a URL containing numbers
+    //    doesn't get misread as raw coords.
     if (URL_RE.test(text)) {
       if (timer.current) window.clearTimeout(timer.current)
       timer.current = window.setTimeout(async () => {
@@ -83,7 +88,17 @@ export function LocationSearch({
       return
     }
 
-    // 3) Free-text search via Nominatim (>=3 chars, debounced)
+    // 2) Raw coordinates (after URL check so we don't grab numbers from links)
+    const coords = parseCoords(text)
+    if (coords) {
+      setCoordHit(coords)
+      setResults([])
+      setOpen(true)
+      return
+    }
+    setCoordHit(null)
+
+    // 3) Free-text search via Photon → Nominatim (>=3 chars, debounced)
     if (text.length < 3) {
       setResults([])
       return
