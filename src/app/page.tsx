@@ -6,9 +6,11 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function HomePage() {
   const supabase = createClient()
+  const lang = await getLang()
 
   // Check auth
   const { data: { user } } = await supabase.auth.getUser()
@@ -47,7 +49,7 @@ export default async function HomePage() {
         <div className="flex justify-between items-start">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-              YO! · ★ ★ ★
+              {t(lang, 'home.greet')}
             </div>
             <h1 className="mt-1 text-display font-black tracking-tighter">
               {(profile?.display_name || 'YOU').split(' ')[0].toUpperCase()}.
@@ -78,9 +80,11 @@ export default async function HomePage() {
             <div className="card-hero">
               <div className="flex justify-between items-start">
                 <span className="bg-brand-black px-2.5 py-1 rounded-pill text-[10px] font-black tracking-wider">
-                  NEXT UP ★
+                  {t(lang, 'home.next_up')}
                 </span>
-                <span className="font-black text-lg">{daysUntil(activeTrip.start_date)}d</span>
+                <span className="font-black text-lg">
+                  {lang === 'th' ? `อีก ${daysUntil(activeTrip.start_date)} วัน` : `${daysUntil(activeTrip.start_date)}d`}
+                </span>
               </div>
 
               <div className="mt-4 text-[38px] font-black leading-none tracking-tighter">
@@ -102,17 +106,17 @@ export default async function HomePage() {
         {/* Other trips */}
         <div className="mt-8 flex justify-between items-baseline">
           <div className="text-xs font-black uppercase tracking-[2px]">
-            MORE TRIPS
+            {t(lang, 'home.more_trips')}
           </div>
           <Link href="/trips" className="text-xs font-medium text-brand-red no-underline">
-            SEE ALL →
+            {t(lang, 'home.see_all')}
           </Link>
         </div>
 
         <div className="mt-3 space-y-2">
           {otherTrips.length === 0 && !activeTrip && (
             <div className="text-center py-8 text-gray-500 text-sm">
-              No trips yet. Start your first adventure ↓
+              {t(lang, 'home.no_trips')}
             </div>
           )}
 
@@ -136,7 +140,7 @@ export default async function HomePage() {
         {/* CTA */}
         <div className="mt-6">
           <Link href="/trips/new" className="btn-primary block text-center no-underline">
-            ＋ START NEW ADVENTURE
+            {t(lang, 'home.start_new')}
           </Link>
         </div>
       </div>

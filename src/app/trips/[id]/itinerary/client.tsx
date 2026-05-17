@@ -23,6 +23,7 @@ interface Activity {
 interface ActivityType {
   id: string
   label_en: string
+  label_th: string
   icon: string
   color: string
 }
@@ -35,7 +36,11 @@ interface Props {
   canEdit: boolean
   activities: Activity[]
   types: ActivityType[]
+  lang: 'th' | 'en'
 }
+
+const pickLabel = (t: ActivityType | undefined, lang: 'th' | 'en') =>
+  t ? (lang === 'th' ? t.label_th : t.label_en) : ''
 
 const STATUS_LABELS: Record<Activity['status'], string> = {
   idea: 'IDEA',
@@ -54,7 +59,7 @@ const STATUS_COLORS: Record<Activity['status'], string> = {
 }
 
 export function ItineraryClient(props: Props) {
-  const { tripId, tripStart, tripDays, currency, canEdit, activities, types } = props
+  const { tripId, tripStart, tripDays, currency, canEdit, activities, types, lang } = props
   const router = useRouter()
   const supabase = createClient()
 
@@ -159,6 +164,7 @@ export function ItineraryClient(props: Props) {
           types={types}
           tripDays={tripDays}
           saving={saving}
+          lang={lang}
           onChange={setEditing}
           onCancel={() => setEditing(null)}
           onSubmit={save}
@@ -339,11 +345,12 @@ function ActivityCard({ activity, type, canEdit, onEdit, onDelete, onStatus }: {
 
 // ===== Form =====
 
-function ActivityForm({ editing, types, tripDays, saving, onChange, onCancel, onSubmit }: {
+function ActivityForm({ editing, types, tripDays, saving, lang, onChange, onCancel, onSubmit }: {
   editing: Partial<Activity>
   types: ActivityType[]
   tripDays: number
   saving: boolean
+  lang: 'th' | 'en'
   onChange: (a: Partial<Activity>) => void
   onCancel: () => void
   onSubmit: (e: React.FormEvent) => void
@@ -373,7 +380,7 @@ function ActivityForm({ editing, types, tripDays, saving, onChange, onCancel, on
                   : 'border-gray-200 bg-white'
               }`}
             >
-              {t.icon} {t.label_en}
+              {t.icon} {pickLabel(t, lang)}
             </button>
           ))}
         </div>

@@ -3,9 +3,11 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate, formatCurrency } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function TripDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirect=/trips/${params.id}`)
@@ -75,14 +77,14 @@ export default async function TripDetailPage({ params }: { params: { id: string 
         {/* Back + Edit (owner) */}
         <div className="flex justify-between items-center">
           <Link href="/trips" className="text-xs font-bold tracking-[2px] text-gray-500 no-underline">
-            ← ALL TRIPS
+            {t(lang, 'trip.all_trips')}
           </Link>
           {isOwner && (
             <Link
               href={`/trips/${trip.id}/edit`}
               className="text-xs font-bold tracking-[2px] text-brand-red no-underline"
             >
-              ✎ EDIT
+              ✎ {t(lang, 'btn.edit')}
             </Link>
           )}
         </div>
@@ -91,10 +93,12 @@ export default async function TripDetailPage({ params }: { params: { id: string 
         <div className="mt-4 card-hero">
           <div className="flex justify-between items-start">
             <span className="bg-brand-black px-2.5 py-1 rounded-pill text-[10px] font-black tracking-wider">
-              {trip.status.toUpperCase()} ★
+              {t(lang, `status.${trip.status}` as any)} ★
             </span>
             <span className="font-black text-lg">
-              {days >= 0 ? `${days}d` : `${Math.abs(days)}d ago`}
+              {days >= 0
+                ? (lang === 'th' ? `อีก ${days} วัน` : `${days}d`)
+                : (lang === 'th' ? `ผ่านมา ${Math.abs(days)} วัน` : `${Math.abs(days)}d ago`)}
             </span>
           </div>
 
@@ -114,16 +118,16 @@ export default async function TripDetailPage({ params }: { params: { id: string 
 
         {/* Stats grid */}
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <StatCard label="MEMBERS" value={String(approvedMembers.length)} />
-          <StatCard label="PLANS" value={String(activityCount || 0)} />
-          <StatCard label="SPENT" value={formatCurrency(totalSpent, trip.default_currency)} small />
+          <StatCard label={t(lang, 'trip.members')} value={String(approvedMembers.length)} />
+          <StatCard label={t(lang, 'trip.plans')} value={String(activityCount || 0)} />
+          <StatCard label={t(lang, 'trip.spent')} value={formatCurrency(totalSpent, trip.default_currency)} small />
         </div>
 
         {/* Budget bar */}
         {trip.budget_amount && Number(trip.budget_amount) > 0 && (
           <div className="mt-4 card-base p-4">
             <div className="flex justify-between text-[10px] font-black tracking-[2px] text-gray-600 mb-2">
-              <span>BUDGET</span>
+              <span>{t(lang, 'trip.budget')}</span>
               <span>{budgetPct.toFixed(0)}%</span>
             </div>
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -141,17 +145,17 @@ export default async function TripDetailPage({ params }: { params: { id: string 
         {/* Members */}
         <div className="mt-8">
           <div className="flex justify-between items-baseline mb-3">
-            <div className="text-xs font-black uppercase tracking-[2px]">CREW</div>
+            <div className="text-xs font-black uppercase tracking-[2px]">{t(lang, 'trip.crew')}</div>
             <Link
               href={`/trips/${trip.id}/members`}
               className="text-[10px] font-black tracking-wider text-brand-red no-underline flex items-center gap-1"
             >
               {isOwner && pendingCount > 0 && (
                 <span className="bg-brand-red text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
-                  {pendingCount} NEW
+                  {pendingCount} {lang === 'th' ? 'ใหม่' : 'NEW'}
                 </span>
               )}
-              MANAGE →
+              {t(lang, 'btn.manage')}
             </Link>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -175,16 +179,16 @@ export default async function TripDetailPage({ params }: { params: { id: string 
 
         {/* Action grid */}
         <div className="mt-8 grid grid-cols-2 gap-2">
-          <ActionCard label="ITINERARY" sub="Activities & schedule" href={`/trips/${trip.id}/itinerary`} />
-          <ActionCard label="EXPENSES" sub="Split costs" href={`/trips/${trip.id}/expenses`} />
-          <ActionCard label="CHECKLIST" sub="Pack & prep" href={`/trips/${trip.id}/checklist`} />
-          <ActionCard label="DOCS" sub="Tickets & passes" href={`/trips/${trip.id}/docs`} />
+          <ActionCard label={t(lang, 'card.itinerary')} sub={t(lang, 'card.itinerary_sub')} href={`/trips/${trip.id}/itinerary`} />
+          <ActionCard label={t(lang, 'card.expenses')}  sub={t(lang, 'card.expenses_sub')}  href={`/trips/${trip.id}/expenses`} />
+          <ActionCard label={t(lang, 'card.checklist')} sub={t(lang, 'card.checklist_sub')} href={`/trips/${trip.id}/checklist`} />
+          <ActionCard label={t(lang, 'card.docs')}      sub={t(lang, 'card.docs_sub')}      href={`/trips/${trip.id}/docs`} />
         </div>
 
         {/* Description */}
         {trip.description && (
           <div className="mt-8 card-base p-4">
-            <div className="text-[10px] font-black tracking-[2px] text-gray-600 mb-2">NOTES</div>
+            <div className="text-[10px] font-black tracking-[2px] text-gray-600 mb-2">{t(lang, 'trip.notes')}</div>
             <p className="text-sm whitespace-pre-wrap">{trip.description}</p>
           </div>
         )}

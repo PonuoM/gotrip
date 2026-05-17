@@ -3,9 +3,11 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { BottomNav } from '@/components/BottomNav'
 import { ItineraryClient } from './client'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function ItineraryPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirect=/trips/${params.id}/itinerary`)
@@ -42,7 +44,7 @@ export default async function ItineraryPage({ params }: { params: { id: string }
       .order('sort_order', { ascending: true }),
     supabase
       .from('activity_types')
-      .select('id, label_en, icon, color')
+      .select('id, label_en, label_th, icon, color')
       .eq('is_active', true)
       .order('sort_order'),
   ])
@@ -62,10 +64,10 @@ export default async function ItineraryPage({ params }: { params: { id: string }
 
         <div className="mt-4 mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            ✈ {tripDays} DAYS · ★ ★ ★
+            ✈ {tripDays} {lang === 'th' ? 'วัน' : 'DAYS'} · ★ ★ ★
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
-            ITINERARY.
+            {t(lang, 'page.itinerary')}
           </h1>
           <div className="brand-underline" />
         </div>
@@ -78,6 +80,7 @@ export default async function ItineraryPage({ params }: { params: { id: string }
           canEdit={canEdit}
           activities={activities || []}
           types={types || []}
+          lang={lang}
         />
       </div>
       <BottomNav />

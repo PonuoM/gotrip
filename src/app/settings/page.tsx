@@ -12,6 +12,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [originalName, setOriginalName] = useState('')
+  const [lang, setLang] = useState<'th' | 'en'>('th')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -27,17 +28,30 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('display_name')
+        .select('display_name, preferred_lang')
         .eq('id', user.id)
         .single()
 
       const current = profile?.display_name || ''
       setName(current)
       setOriginalName(current)
+      setLang((profile?.preferred_lang === 'en' ? 'en' : 'th'))
       setLoading(false)
     }
     load()
   }, [supabase, router])
+
+  const changeLang = async (next: 'th' | 'en') => {
+    if (next === lang) return
+    setLang(next)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase
+      .from('user_profiles')
+      .update({ preferred_lang: next })
+      .eq('id', user.id)
+    router.refresh()
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -142,6 +156,37 @@ export default function SettingsPage() {
 
         {/* Divider */}
         <div className="my-8 border-t-2 border-dashed border-gray-200" />
+
+        {/* Language */}
+        <div className="mb-8">
+          <div className="text-[10px] font-black tracking-[2px] text-gray-600 mb-2">
+            LANGUAGE / ภาษา
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => changeLang('th')}
+              className={`py-3 px-4 rounded-pill border-2 border-brand-black font-black text-sm tracking-wider transition ${
+                lang === 'th'
+                  ? 'bg-brand-black text-white'
+                  : 'bg-white text-brand-black hover:bg-gray-50'
+              }`}
+            >
+              🇹🇭 ไทย
+            </button>
+            <button
+              type="button"
+              onClick={() => changeLang('en')}
+              className={`py-3 px-4 rounded-pill border-2 border-brand-black font-black text-sm tracking-wider transition ${
+                lang === 'en'
+                  ? 'bg-brand-black text-white'
+                  : 'bg-white text-brand-black hover:bg-gray-50'
+              }`}
+            >
+              🇬🇧 ENGLISH
+            </button>
+          </div>
+        </div>
 
         {/* Logout */}
         <form action="/auth/signout" method="POST">

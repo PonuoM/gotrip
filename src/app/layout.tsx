@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { getLang } from '@/lib/i18n'
+import { LangProvider } from '@/components/LangProvider'
 
 export const metadata: Metadata = {
-  title: 'TripPal — Plan trips with your crew',
+  title: 'GoTrip — Plan trips with your crew',
   description: 'Trip planning app for groups. Split costs. Make memories.',
   manifest: '/manifest.json',
 }
@@ -15,9 +17,17 @@ export const viewport: Viewport = {
   themeColor: '#E63946',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Resolve lang from user profile (defaults to 'th' if not logged in)
+  let lang: 'th' | 'en' = 'th'
+  try {
+    lang = await getLang()
+  } catch {
+    lang = 'th'
+  }
+
   return (
-    <html lang="th">
+    <html lang={lang}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -26,7 +36,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        <LangProvider lang={lang}>{children}</LangProvider>
+      </body>
     </html>
   )
 }

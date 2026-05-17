@@ -2,16 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useT } from './LangProvider'
+import type { TKey } from '@/lib/i18n'
 
-const items = [
-  { href: '/',         label: 'HOME', icon: '★' },
-  { href: '/trips',    label: 'PLAN', icon: '✈' },
-  { href: '/expenses', label: 'PAY',  icon: '฿' },
-  { href: '/settings', label: 'CREW', icon: '◉' },
+const items: Array<{ href: string; key: TKey; icon: string }> = [
+  { href: '/',         key: 'nav.home', icon: '★' },
+  { href: '/trips',    key: 'nav.plan', icon: '✈' },
+  { href: '/expenses', key: 'nav.pay',  icon: '฿' },
+  { href: '/settings', key: 'nav.crew', icon: '◉' },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
+  const t = useT()
   return (
     <nav className="fixed bottom-0 left-0 right-0 bottom-nav">
       {items.map(item => {
@@ -25,7 +28,7 @@ export function BottomNav() {
             className={`no-underline ${active ? 'text-brand-red' : 'text-white opacity-50'}`}
           >
             <span className="mr-1">{item.icon}</span>
-            {item.label}
+            {t(item.key)}
           </Link>
         )
       })}
