@@ -59,9 +59,17 @@ export default async function ItineraryPage({ params }: { params: { id: string }
     <main className="min-h-screen bg-brand-white pb-24">
       <div className="max-w-md mx-auto p-6">
 
-        <Link href={`/trips/${params.id}`} className="text-xs font-bold tracking-[2px] text-gray-500 no-underline">
-          ← {trip.name.toUpperCase()}
-        </Link>
+        <div className="flex justify-between items-center">
+          <Link href={`/trips/${params.id}`} className="text-xs font-bold tracking-[2px] text-gray-500 no-underline">
+            ← {trip.name.toUpperCase()}
+          </Link>
+          <Link
+            href={`/trips/${params.id}/map`}
+            className="text-xs font-bold tracking-[2px] text-brand-red no-underline"
+          >
+            🗺 {lang === 'th' ? 'แผนที่' : 'MAP'} →
+          </Link>
+        </div>
 
         <div className="mt-4 mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
