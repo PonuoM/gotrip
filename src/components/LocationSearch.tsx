@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-interface NominatimResult {
-  place_id: number
-  display_name: string
-  lat: string
-  lon: string
+interface SearchResult {
+  id: string
+  display: string         // headline (name)
+  sub: string             // secondary line (city, country)
+  lat: number
+  lng: number
 }
 
 interface Props {
@@ -19,6 +20,9 @@ interface Props {
   lang?: 'th' | 'en'
 }
 
+// Photon (komoot) — free, no API key, smarter ranking than Nominatim.
+// Falls back to Nominatim if Photon is unreachable.
+const PHOTON    = 'https://photon.komoot.io/api'
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 
 // "34.6, 135.5" or "34.6,135.5" or "34.6  135.5"
@@ -30,7 +34,7 @@ const URL_RE   = /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl|(?:www\.)?google\.[a-z
 export function LocationSearch({
   value, onPick, onChange, placeholder, className, disabled, lang = 'en',
 }: Props) {
-  const [results, setResults] = useState<NominatimResult[]>([])
+  const [results, setResults] = useState<SearchResult[]>([])
   const [coordHit, setCoordHit] = useState<{ lat: number; lng: number } | null>(null)
   const [urlResolving, setUrlResolving] = useState(false)
   const [urlError, setUrlError] = useState('')
@@ -90,12 +94,45 @@ export function LocationSearch({
     timer.current = window.setTimeout(async () => {
       lastQuery.current = text
       setLoading(true)
+      let hits: SearchResult[] = []
       try {
-        const url = `${NOMINATIM}?format=json&limit=6&accept-language=${lang}&q=${encodeURIComponent(text)}`
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' } })
-        if (!res.ok) throw new Error('search failed')
-        const data: NominatimResult[] = await res.json()
-        setResults(data)
+        // 1) Try Photon (better POI ranking, OSM data)
+        const photonUrl = `${PHOTON}?q=${encodeURIComponent(text)}&limit=6&lang=${lang === 'th' ? 'default' : 'en'}`
+        const r1 = await fetch(photonUrl, { headers: { 'Accept': 'application/json' } })
+        if (r1.ok) {
+          const data = await r1.json()
+          hits = (data?.features || []).map((f: any) => {
+            const p = f.properties || {}
+            const [lng, lat] = f.geometry?.coordinates || []
+            const subParts = [p.street, p.city || p.county, p.state, p.country].filter(Boolean)
+            return {
+              id: `ph-${p.osm_type}-${p.osm_id}`,
+              display: p.name || subParts[0] || '?',
+              sub: subParts.filter(s => s !== p.name).join(', '),
+              lat: Number(lat),
+              lng: Number(lng),
+            }
+          })
+        }
+        // 2) Fallback to Nominatim if Photon returned nothing
+        if (hits.length === 0) {
+          const nomUrl = `${NOMINATIM}?format=json&limit=6&accept-language=${lang}&q=${encodeURIComponent(text)}`
+          const r2 = await fetch(nomUrl, { headers: { 'Accept': 'application/json' } })
+          if (r2.ok) {
+            const data = await r2.json()
+            hits = (data || []).map((row: any) => {
+              const parts = (row.display_name as string).split(',').map((s: string) => s.trim())
+              return {
+                id: `nm-${row.place_id}`,
+                display: parts.slice(0, 2).join(', '),
+                sub:     parts.slice(2).join(', '),
+                lat: Number(row.lat),
+                lng: Number(row.lon),
+              }
+            })
+          }
+        }
+        setResults(hits)
         setOpen(true)
       } catch {
         setResults([])
@@ -107,9 +144,8 @@ export function LocationSearch({
     return () => { if (timer.current) window.clearTimeout(timer.current) }
   }, [value, lang])
 
-  const pickResult = (r: NominatimResult) => {
-    const shortName = r.display_name.split(',').slice(0, 2).join(',').trim()
-    onPick({ name: shortName, lat: Number(r.lat), lng: Number(r.lon) })
+  const pickResult = (r: SearchResult) => {
+    onPick({ name: r.display, lat: r.lat, lng: r.lng })
     setOpen(false)
     setResults([])
   }
@@ -165,25 +201,20 @@ export function LocationSearch({
             </button>
           )}
 
-          {/* Nominatim text results */}
-          {results.map(r => {
-            const parts = r.display_name.split(',').map(s => s.trim())
-            const headline = parts.slice(0, 2).join(', ')
-            const sub = parts.slice(2).join(', ')
-            return (
-              <button
-                key={r.place_id}
-                type="button"
-                onClick={() => pickResult(r)}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
-              >
-                <div className="font-bold text-xs truncate">📍 {headline}</div>
-                {sub && (
-                  <div className="text-[10px] text-gray-500 font-medium truncate">{sub}</div>
-                )}
-              </button>
-            )
-          })}
+          {/* Text search results (Photon → Nominatim fallback) */}
+          {results.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => pickResult(r)}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
+            >
+              <div className="font-bold text-xs truncate">📍 {r.display}</div>
+              {r.sub && (
+                <div className="text-[10px] text-gray-500 font-medium truncate">{r.sub}</div>
+              )}
+            </button>
+          ))}
         </div>
       )}
     </div>
