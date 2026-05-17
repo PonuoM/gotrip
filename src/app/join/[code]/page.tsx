@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate } from '@/lib/utils'
@@ -47,9 +46,8 @@ export default async function JoinPage({ params }: { params: { code: string } })
   // 2. Check if user is logged in
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Not logged in → save code in cookie + show login prompt
+  // Not logged in → show login prompt (login button passes ?redirect=/join/code)
   if (!user) {
-    cookies().set('pending_invite', code, { maxAge: 3600, path: '/' })
     return <JoinPreview invite={invite} owner={ownerProfile} />
   }
 
