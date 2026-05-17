@@ -26,7 +26,7 @@ export default async function MapPage({ params }: { params: { id: string } }) {
 
   const { data: myMembership } = await supabase
     .from('trip_members')
-    .select('status')
+    .select('id, status')
     .eq('trip_id', params.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -35,7 +35,7 @@ export default async function MapPage({ params }: { params: { id: string } }) {
     redirect(`/trips/${params.id}`)
   }
 
-  const [{ data: activities }, { data: types }] = await Promise.all([
+  const [{ data: activities }, { data: types }, { data: liveMembers }] = await Promise.all([
     supabase
       .from('activities')
       .select('id, title, day_number, start_at, location_name, latitude, longitude, status, type_id')
@@ -46,7 +46,31 @@ export default async function MapPage({ params }: { params: { id: string } }) {
       .from('activity_types')
       .select('id, icon')
       .eq('is_active', true),
+    supabase
+      .from('trip_members')
+      .select('id, user_id, current_lat, current_lng, current_location_at')
+      .eq('trip_id', params.id)
+      .eq('status', 'approved')
+      .not('current_lat', 'is', null)
+      .gt('current_location_at', new Date(Date.now() - 6 * 3600 * 1000).toISOString()),
   ])
+
+  // Resolve display names for live members
+  const liveUserIds = (liveMembers || []).map((m: any) => m.user_id)
+  const { data: liveProfiles } = liveUserIds.length > 0
+    ? await supabase.from('user_profiles').select('id, display_name').in('id', liveUserIds)
+    : { data: [] as any[] }
+  const liveNames = Object.fromEntries((liveProfiles || []).map((p: any) => [p.id, p.display_name]))
+
+  const crewLive = (liveMembers || []).map((m: any) => ({
+    member_id: m.id,
+    user_id: m.user_id,
+    name: liveNames[m.user_id] || '?',
+    lat: Number(m.current_lat),
+    lng: Number(m.current_lng),
+    updated_at: m.current_location_at,
+    is_me: m.user_id === user.id,
+  }))
 
   const iconByType = Object.fromEntries((types || []).map((t: any) => [t.id, t.icon]))
 
@@ -104,7 +128,12 @@ export default async function MapPage({ params }: { params: { id: string } }) {
               : 'No pinned activities yet. Search & pick locations in the itinerary form.'}
           </div>
         ) : (
-          <TripMap activities={pinned} />
+          <TripMap
+            activities={pinned}
+            crewLive={crewLive}
+            myMemberId={myMembership.id}
+            lang={lang}
+          />
         )}
 
         {/* Legend by day */}
