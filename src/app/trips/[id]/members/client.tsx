@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { nanoid } from 'nanoid'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
+import { t as translate, type TKey } from '@/lib/i18n'
 
 interface Props {
   tripId: string
@@ -13,11 +14,13 @@ interface Props {
   approved: any[]
   pending: any[]
   invites: any[]
+  lang: 'th' | 'en'
 }
 
-export function MembersClient({ tripId, isOwner, currentUserId, approved, pending, invites }: Props) {
+export function MembersClient({ tripId, isOwner, currentUserId, approved, pending, invites, lang }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const t = (k: TKey) => translate(lang, k)
 
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -32,7 +35,7 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
   }
 
   const reject = async (memberId: string) => {
-    if (!confirm('Reject this request? They will need a new invite to try again.')) return
+    if (!confirm(t('mem.reject'))) return
     setBusy(memberId)
     setError('')
     const { error } = await supabase.from('trip_members').delete().eq('id', memberId)
@@ -51,7 +54,10 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
   }
 
   const removeMember = async (memberId: string, name: string) => {
-    if (!confirm(`Remove ${name} from this trip? They will lose access.`)) return
+    const msg = lang === 'th'
+      ? `ลบ ${name} ออกจากทริปนี้? เขาจะสูญเสียสิทธิ์เข้าถึง`
+      : `Remove ${name} from this trip? They will lose access.`
+    if (!confirm(msg)) return
     setBusy(memberId)
     setError('')
     const { error } = await supabase.from('trip_members').delete().eq('id', memberId)
@@ -72,7 +78,7 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
       {isOwner && pending.length > 0 && (
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-black uppercase tracking-[2px]">PENDING</span>
+            <span className="text-xs font-black uppercase tracking-[2px]">{t('mem.pending')}</span>
             <span className="bg-brand-red text-white text-[10px] font-black px-2 py-0.5 rounded-pill">
               {pending.length}
             </span>
@@ -90,7 +96,7 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
                         {m.user_profiles?.display_name || 'Unknown'}
                       </div>
                       <div className="text-[10px] text-gray-500 font-bold">
-                        wants to join · {m.role}
+                        {t('mem.wants_join')} · {m.role}
                       </div>
                     </div>
                   </div>
@@ -120,7 +126,7 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
       {/* Approved members */}
       <section className="mb-6">
         <div className="text-xs font-black uppercase tracking-[2px] mb-3">
-          APPROVED · {approved.length}
+          {t('mem.approved')} · {approved.length}
         </div>
         <div className="space-y-2">
           {approved.map(m => {
@@ -136,10 +142,10 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-black text-sm truncate">
-                      {name}{isSelf && ' (you)'}
+                      {name}{isSelf && ` ${t('mem.you')}`}
                     </div>
                     <div className="text-[10px] text-gray-500 font-bold tracking-wider">
-                      {m.role.toUpperCase()} · joined {formatDate(m.joined_at)}
+                      {m.role.toUpperCase()} · {t('mem.joined')} {formatDate(m.joined_at)}
                     </div>
                   </div>
                 </div>
@@ -159,7 +165,7 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
                       disabled={busy === m.id}
                       className="text-[10px] font-black tracking-wider text-brand-red border border-brand-red/30 rounded-pill px-2 py-1 disabled:opacity-50"
                     >
-                      REMOVE
+                      {t('mem.remove')}
                     </button>
                   </div>
                 )}
@@ -171,15 +177,16 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
 
       {/* Invite generator + active links — owner only */}
       {isOwner && (
-        <InviteSection tripId={tripId} invites={invites} />
+        <InviteSection tripId={tripId} invites={invites} lang={lang} />
       )}
     </>
   )
 }
 
-function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) {
+function InviteSection({ tripId, invites, lang }: { tripId: string; invites: any[]; lang: 'th' | 'en' }) {
   const router = useRouter()
   const supabase = createClient()
+  const t = (k: TKey) => translate(lang, k)
 
   const [role, setRole] = useState<'editor' | 'viewer'>('editor')
   const [maxUses, setMaxUses] = useState('5')
@@ -217,7 +224,7 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
   }
 
   const handleRevoke = async (id: string) => {
-    if (!confirm('Revoke this invite link?')) return
+    if (!confirm(t('mem.revoke'))) return
     await supabase.from('trip_invites').delete().eq('id', id)
     router.refresh()
   }
@@ -234,25 +241,25 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
   return (
     <section>
       <div className="text-xs font-black uppercase tracking-[2px] mb-3">
-        ✉ INVITE LINKS
+        {t('mem.invite_links')}
       </div>
 
       {/* Create form */}
       <form onSubmit={handleCreate} className="card-base p-4 mb-3 space-y-3">
         <div className="grid grid-cols-3 gap-2">
           <label className="block">
-            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">ROLE</div>
+            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('mem.role')}</div>
             <select
               value={role}
               onChange={e => setRole(e.target.value as any)}
               className="w-full border-2 border-brand-black rounded-lg py-2 px-2 font-bold text-xs"
             >
-              <option value="editor">Editor</option>
-              <option value="viewer">Viewer</option>
+              <option value="editor">{lang === 'th' ? 'แก้ไขได้' : 'Editor'}</option>
+              <option value="viewer">{lang === 'th' ? 'ดูอย่างเดียว' : 'Viewer'}</option>
             </select>
           </label>
           <label className="block">
-            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">MAX USES</div>
+            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('mem.max_uses')}</div>
             <input
               type="number"
               min="1"
@@ -264,7 +271,7 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
             />
           </label>
           <label className="block">
-            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">DAYS</div>
+            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('mem.days')}</div>
             <input
               type="number"
               min="1"
@@ -281,7 +288,7 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
           disabled={creating}
           className="btn-primary w-full disabled:opacity-50"
         >
-          {creating ? 'CREATING...' : '＋ CREATE LINK'}
+          {creating ? t('mem.creating') : t('mem.create_link')}
         </button>
 
         {error && (
@@ -291,7 +298,7 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
         {createdCode && (
           <div className="mt-3 p-3 bg-brand-black text-white rounded-xl">
             <div className="text-[9px] font-black tracking-[1.5px] opacity-70 mb-1">
-              ★ LINK CREATED — copy & share
+              {t('mem.link_created')}
             </div>
             <div className="font-mono text-xs break-all mb-2">{inviteUrl(createdCode)}</div>
             <button
@@ -299,7 +306,7 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
               onClick={() => copy(createdCode)}
               className="bg-brand-red text-white text-[10px] font-black px-3 py-1.5 rounded-pill border-2 border-white"
             >
-              {copied ? '✓ COPIED' : '📋 COPY LINK'}
+              {copied ? t('mem.copied') : t('mem.copy')}
             </button>
           </div>
         )}
@@ -309,7 +316,7 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
       {invites.length > 0 && (
         <div className="space-y-2">
           <div className="text-[10px] font-bold tracking-[2px] text-gray-500">
-            ACTIVE LINKS
+            {t('mem.active_links')}
           </div>
           {invites.map(inv => {
             const expired = inv.expires_at && new Date(inv.expires_at) < new Date()
@@ -325,9 +332,9 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
                     <div className="text-[10px] text-gray-500 font-bold mt-0.5">
                       {inv.role.toUpperCase()}
                       {' · '}
-                      {inv.used_count}/{inv.max_uses ?? '∞'} used
+                      {inv.used_count}/{inv.max_uses ?? '∞'} {t('mem.used')}
                       {inv.expires_at && (
-                        <> · {expired ? 'EXPIRED' : `expires ${formatDate(inv.expires_at)}`}</>
+                        <> · {expired ? t('mem.expired') : `${t('mem.expires')} ${formatDate(inv.expires_at)}`}</>
                       )}
                     </div>
                   </div>
@@ -337,7 +344,7 @@ function InviteSection({ tripId, invites }: { tripId: string; invites: any[] }) 
                         onClick={() => copy(inv.code)}
                         className="text-[10px] font-black px-2 py-1.5 rounded-pill border-2 border-brand-black"
                       >
-                        COPY
+                        {t('mem.copy_short')}
                       </button>
                     )}
                     <button

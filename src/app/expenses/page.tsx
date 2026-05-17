@@ -3,9 +3,11 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function ExpensesPage() {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login?redirect=/expenses')
@@ -45,10 +47,10 @@ export default async function ExpensesPage() {
 
         <div className="mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            ฿ EXPENSES · ★ ★ ★
+            {t(lang, 'pay.kicker')}
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
-            PAY.
+            {t(lang, 'page.pay')}
           </h1>
           <div className="brand-underline" />
         </div>
@@ -56,24 +58,24 @@ export default async function ExpensesPage() {
         {/* Grand total card */}
         <div className="card-hero mt-2">
           <div className="text-[10px] font-black tracking-[2px] opacity-80">
-            TOTAL SPENT (THB)
+            {t(lang, 'pay.total')}
           </div>
           <div className="mt-1 text-[38px] font-black leading-none tracking-tighter">
             {formatCurrency(grandTotal, 'THB')}
           </div>
           <div className="text-xs font-medium mt-1 opacity-80">
-            Across {trips.length} trip{trips.length !== 1 ? 's' : ''}
+            {t(lang, 'pay.across')} {trips.length} {trips.length !== 1 ? t(lang, 'pay.trips') : t(lang, 'pay.trip')}
           </div>
         </div>
 
         {/* By trip */}
         <div className="mt-8">
           <div className="text-xs font-black uppercase tracking-[2px] mb-3">
-            BY TRIP
+            {t(lang, 'pay.by_trip')}
           </div>
           {trips.length === 0 ? (
             <div className="text-center py-8 text-gray-500 text-sm">
-              No trips yet. <Link href="/trips/new" className="underline text-brand-red">Start one</Link>
+              {t(lang, 'pay.no_trips')} <Link href="/trips/new" className="underline text-brand-red">{t(lang, 'pay.start_one')}</Link>
             </div>
           ) : (
             <div className="space-y-2">
@@ -93,7 +95,7 @@ export default async function ExpensesPage() {
                       {budget > 0 && (
                         <>
                           <div className="text-[10px] text-gray-500 mt-1">
-                            of {formatCurrency(budget, trip.default_currency)} budget · {pct.toFixed(0)}%
+                            {t(lang, 'pay.budget_of')} {formatCurrency(budget, trip.default_currency)} · {pct.toFixed(0)}%
                           </div>
                           <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div

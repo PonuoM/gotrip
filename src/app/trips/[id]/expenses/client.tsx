@@ -27,6 +27,7 @@ interface Member {
 interface Category {
   id: string
   label_en: string
+  label_th: string
   icon: string
   color: string
 }
@@ -49,14 +50,20 @@ interface Props {
   members: Member[]
   categories: Category[]
   debts: Debt[]
+  lang: 'th' | 'en'
 }
+
+import { t as translate, type TKey } from '@/lib/i18n'
+const pickCat = (c: Category | undefined, lang: 'th' | 'en') =>
+  c ? (lang === 'th' ? c.label_th : c.label_en) : ''
 
 const CURRENCIES = ['THB', 'JPY', 'USD', 'EUR', 'KRW', 'TWD']
 
 export function ExpensesClient(props: Props) {
-  const { tripId, currency, budget, myMemberId, canEdit, expenses, members, categories, debts } = props
+  const { tripId, currency, budget, myMemberId, canEdit, expenses, members, categories, debts, lang } = props
   const router = useRouter()
   const supabase = createClient()
+  const t = (k: TKey) => translate(lang, k)
 
   const [editing, setEditing] = useState<Partial<Expense> & { _splitWith?: string[] } | null>(null)
   const [error, setError] = useState('')
@@ -107,12 +114,12 @@ export function ExpensesClient(props: Props) {
     if (!editing) return
     const amount = Number(editing.amount)
     if (!editing.description?.trim() || !amount || amount <= 0) {
-      setError('Description and amount > 0 are required')
+      setError(t('exp.err_required'))
       return
     }
     const splitMembers = editing._splitWith || []
     if (splitMembers.length === 0) {
-      setError('Select at least one person to split with')
+      setError(t('exp.err_split'))
       return
     }
 
@@ -162,7 +169,7 @@ export function ExpensesClient(props: Props) {
   }
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this expense?')) return
+    if (!confirm(t('exp.delete_confirm'))) return
     // Splits cascade-delete via FK
     await supabase.from('expenses').delete().eq('id', id)
     router.refresh()
@@ -178,14 +185,14 @@ export function ExpensesClient(props: Props) {
 
       {/* Summary */}
       <div className="card-hero">
-        <div className="text-[10px] font-black tracking-[2px] opacity-80">TRIP TOTAL</div>
+        <div className="text-[10px] font-black tracking-[2px] opacity-80">{t('exp.trip_total')}</div>
         <div className="mt-1 text-[36px] font-black leading-none tracking-tighter">
           {formatCurrency(totalSpent, currency)}
         </div>
         {budget && (
           <>
             <div className="text-xs font-medium mt-1 opacity-80">
-              of {formatCurrency(budget, currency)} ({budgetPct.toFixed(0)}%)
+              {t('pay.budget_of')} {formatCurrency(budget, currency)} ({budgetPct.toFixed(0)}%)
             </div>
             <div className="mt-3 h-2 bg-black/30 rounded-full overflow-hidden">
               <div className="h-full bg-white" style={{ width: `${budgetPct}%` }} />
@@ -197,9 +204,9 @@ export function ExpensesClient(props: Props) {
       {/* My balance */}
       <div className={`mt-3 card-base p-3 flex justify-between items-center ${myBalance < 0 ? 'border-brand-red' : 'border-green-600'}`}>
         <div>
-          <div className="text-[10px] font-black tracking-[2px] text-gray-600">YOUR BALANCE</div>
+          <div className="text-[10px] font-black tracking-[2px] text-gray-600">{t('exp.your_balance')}</div>
           <div className="text-[10px] text-gray-500 font-bold mt-0.5">
-            {myBalance > 0 ? 'You are owed' : myBalance < 0 ? 'You owe' : 'All even'}
+            {myBalance > 0 ? t('exp.youre_owed') : myBalance < 0 ? t('exp.you_owe') : t('exp.all_even')}
           </div>
         </div>
         <div className={`font-black text-xl ${myBalance < 0 ? 'text-brand-red' : 'text-green-700'}`}>
@@ -209,13 +216,13 @@ export function ExpensesClient(props: Props) {
 
       {/* Settle-up summary */}
       {debts.length > 0 && (
-        <SettleUpSection debts={debts} currency={currency} />
+        <SettleUpSection debts={debts} currency={currency} label={t('exp.settle_up')} />
       )}
 
       {/* Add button */}
       {canEdit && !editing && (
         <button onClick={startNew} className="btn-primary w-full mt-6">
-          ＋ NEW EXPENSE
+          {t('exp.new')}
         </button>
       )}
 
@@ -226,6 +233,7 @@ export function ExpensesClient(props: Props) {
           categories={categories}
           members={members}
           saving={saving}
+          lang={lang}
           onChange={setEditing}
           onCancel={() => setEditing(null)}
           onSubmit={save}
@@ -235,11 +243,11 @@ export function ExpensesClient(props: Props) {
       {/* List */}
       <div className="mt-8">
         <div className="text-xs font-black uppercase tracking-[2px] mb-3">
-          ALL EXPENSES · {expenses.length}
+          {t('exp.all_expenses')} · {expenses.length}
         </div>
         {expenses.length === 0 ? (
           <div className="text-center py-8 text-gray-400 text-sm">
-            — no expenses yet —
+            {t('exp.no_expenses')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -251,6 +259,7 @@ export function ExpensesClient(props: Props) {
                 payer={exp.paid_by ? memberMap[exp.paid_by] : null}
                 memberMap={memberMap}
                 canEdit={canEdit}
+                lang={lang}
                 onEdit={() => startEdit(exp)}
                 onDelete={() => remove(exp.id)}
               />
@@ -264,12 +273,13 @@ export function ExpensesClient(props: Props) {
 
 // ===== Expense card with expandable splits =====
 
-function ExpenseCard({ expense, category, payer, memberMap, canEdit, onEdit, onDelete }: {
+function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdit, onDelete }: {
   expense: Expense
   category: Category | null
   payer: Member | undefined
   memberMap: Record<string, Member>
   canEdit: boolean
+  lang: 'th' | 'en'
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -277,6 +287,7 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, onEdit, onD
   const supabase = createClient()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const t = (k: TKey) => translate(lang, k)
 
   const settledCount = expense.expense_splits.filter(s => s.is_settled).length
   const allSettled = settledCount === expense.expense_splits.length && expense.expense_splits.length > 0
@@ -318,12 +329,12 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, onEdit, onD
             </div>
           </div>
           <div className="text-[11px] text-gray-500 font-bold mt-0.5">
-            Paid by {payer?.user_profiles?.display_name || 'Unknown'}
-            {' · '}{new Date(expense.paid_at).toLocaleDateString('en-GB')}
+            {t('exp.paid_by_label')} {payer?.user_profiles?.display_name || (lang === 'th' ? 'ไม่ทราบ' : 'Unknown')}
+            {' · '}{new Date(expense.paid_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB')}
             {' · '}
             {allSettled
-              ? <span className="text-green-700">all settled ✓</span>
-              : `${settledCount}/${expense.expense_splits.length} settled`}
+              ? <span className="text-green-700">{t('exp.all_settled')}</span>
+              : `${settledCount}/${expense.expense_splits.length} ${t('exp.settled')}`}
             <span className="ml-1 text-gray-300">{open ? '▲' : '▼'}</span>
           </div>
         </div>
@@ -332,7 +343,7 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, onEdit, onD
       {open && (
         <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-500 mb-1">
-            SPLITS — tap to mark settled
+            {t('exp.splits')}
           </div>
           {expense.expense_splits.map(s => {
             const memberName = memberMap[s.member_id]?.user_profiles?.display_name || '?'
@@ -358,7 +369,7 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, onEdit, onD
                     {s.is_settled && '✓'}
                   </div>
                   <span className={`text-xs font-bold ${s.is_settled ? 'line-through text-gray-400' : ''}`}>
-                    {memberName}{isPayer && ' (paid)'}
+                    {memberName}{isPayer && ` ${t('exp.paid_label')}`}
                   </span>
                 </div>
                 <span className={`text-xs font-black ${s.is_settled ? 'text-gray-400' : ''}`}>
@@ -392,10 +403,10 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, onEdit, onD
 
 // ===== Settle-up =====
 
-function SettleUpSection({ debts, currency }: { debts: Debt[]; currency: string }) {
+function SettleUpSection({ debts, currency, label }: { debts: Debt[]; currency: string; label: string }) {
   return (
     <div className="mt-4">
-      <div className="text-xs font-black uppercase tracking-[2px] mb-2">SETTLE UP</div>
+      <div className="text-xs font-black uppercase tracking-[2px] mb-2">{label}</div>
       <div className="space-y-2">
         {debts.map((d, i) => (
           <div key={i} className="card-base p-3 flex items-center justify-between">
@@ -414,15 +425,17 @@ function SettleUpSection({ debts, currency }: { debts: Debt[]; currency: string 
 
 // ===== Form =====
 
-function ExpenseForm({ editing, categories, members, saving, onChange, onCancel, onSubmit }: {
+function ExpenseForm({ editing, categories, members, saving, lang, onChange, onCancel, onSubmit }: {
   editing: Partial<Expense> & { _splitWith?: string[] }
   categories: Category[]
   members: Member[]
   saving: boolean
+  lang: 'th' | 'en'
   onChange: (e: Partial<Expense> & { _splitWith?: string[] }) => void
   onCancel: () => void
   onSubmit: (e: React.FormEvent) => void
 }) {
+  const t = (k: TKey) => translate(lang, k)
   const upd = (patch: Partial<Expense> & { _splitWith?: string[] }) => onChange({ ...editing, ...patch })
   const splitWith = editing._splitWith || []
 
@@ -443,27 +456,27 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
     <form onSubmit={onSubmit} className="card-base p-4 border-brand-red mt-6 space-y-3">
       <div className="flex justify-between items-center">
         <div className="text-xs font-black tracking-[2px]">
-          {editing.id ? 'EDIT EXPENSE' : '＋ NEW EXPENSE'}
+          {editing.id ? t('exp.edit') : t('exp.add_new')}
         </div>
         <button type="button" onClick={onCancel} className="text-xs font-bold text-gray-500">✗</button>
       </div>
 
       <label className="block">
-        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">WHAT *</div>
+        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.what')}</div>
         <input
           type="text"
           required
           maxLength={120}
           value={editing.description || ''}
           onChange={e => upd({ description: e.target.value })}
-          placeholder="e.g. Dinner at Ichiran"
+          placeholder={t('exp.what_ph')}
           className="w-full border-2 border-brand-black rounded-lg py-2 px-3 font-bold"
         />
       </label>
 
       <div className="grid grid-cols-3 gap-2">
         <label className="col-span-2 block">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">AMOUNT *</div>
+          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.amount')}</div>
           <input
             type="number"
             required
@@ -475,7 +488,7 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
           />
         </label>
         <label className="block">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">CURRENCY</div>
+          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('newtrip.curr')}</div>
           <select
             value={editing.currency || 'THB'}
             onChange={e => upd({ currency: e.target.value })}
@@ -487,7 +500,7 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
       </div>
 
       <div>
-        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">CATEGORY</div>
+        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.category')}</div>
         <div className="flex flex-wrap gap-1.5">
           {categories.map(c => (
             <button
@@ -500,7 +513,7 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
                   : 'border-gray-200 bg-white'
               }`}
             >
-              {c.icon} {c.label_en}
+              {c.icon} {pickCat(c, lang)}
             </button>
           ))}
         </div>
@@ -508,7 +521,7 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
 
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">PAID BY</div>
+          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.paid_by')}</div>
           <select
             value={editing.paid_by || ''}
             onChange={e => upd({ paid_by: e.target.value || null })}
@@ -517,13 +530,13 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
             <option value="">—</option>
             {members.map(m => (
               <option key={m.id} value={m.id}>
-                {m.user_profiles?.display_name || 'Unknown'}
+                {m.user_profiles?.display_name || (lang === 'th' ? 'ไม่ทราบ' : 'Unknown')}
               </option>
             ))}
           </select>
         </label>
         <label className="block">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">DATE</div>
+          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.date')}</div>
           <input
             type="date"
             value={editing.paid_at?.slice(0, 10) || ''}
@@ -535,9 +548,9 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
 
       <div>
         <div className="flex justify-between items-center mb-1">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600">SPLIT WITH</div>
+          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600">{t('exp.split_with')}</div>
           <button type="button" onClick={splitAll} className="text-[10px] font-black text-brand-red">
-            ALL
+            {t('exp.all_btn')}
           </button>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -558,13 +571,13 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
         </div>
         {sharePreview > 0 && (
           <div className="text-[10px] text-gray-500 font-bold mt-2">
-            ↳ {formatCurrency(sharePreview, editing.currency || 'THB')} each ({splitWith.length} people)
+            ↳ {formatCurrency(sharePreview, editing.currency || 'THB')} {t('exp.each')} ({splitWith.length} {t('exp.people')})
           </div>
         )}
       </div>
 
       <label className="block">
-        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">NOTES</div>
+        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.notes')}</div>
         <textarea
           rows={2}
           value={editing.notes || ''}
@@ -574,7 +587,7 @@ function ExpenseForm({ editing, categories, members, saving, onChange, onCancel,
       </label>
 
       <button type="submit" disabled={saving} className="btn-primary w-full disabled:opacity-50">
-        {saving ? 'SAVING...' : (editing.id ? 'UPDATE' : 'ADD EXPENSE')}
+        {saving ? t('edit.saving') : (editing.id ? t('exp.update') : t('exp.add'))}
       </button>
     </form>
   )

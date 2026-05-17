@@ -3,9 +3,11 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { BottomNav } from '@/components/BottomNav'
 import { MembersClient } from './client'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function MembersPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirect=/trips/${params.id}/members`)
@@ -53,10 +55,10 @@ export default async function MembersPage({ params }: { params: { id: string } }
 
         <div className="mt-4 mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            ◉ THE CREW · ★ ★ ★
+            {t(lang, 'mem.kicker')}
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
-            MEMBERS.
+            {t(lang, 'mem.heading')}
           </h1>
           <div className="brand-underline" />
         </div>
@@ -68,6 +70,7 @@ export default async function MembersPage({ params }: { params: { id: string } }
           approved={approved}
           pending={pending}
           invites={invites || []}
+          lang={lang}
         />
       </div>
       <BottomNav />

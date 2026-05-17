@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { t as translate, type TKey } from '@/lib/i18n'
 
 interface Item {
   id: string
@@ -31,11 +32,13 @@ interface Props {
   canEdit: boolean
   checklists: Checklist[]
   members: Member[]
+  lang: 'th' | 'en'
 }
 
-export function ChecklistClient({ tripId, canEdit, checklists, members }: Props) {
+export function ChecklistClient({ tripId, canEdit, checklists, members, lang }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const t = (k: TKey) => translate(lang, k)
 
   const [newListTitle, setNewListTitle] = useState('')
   const [creating, setCreating] = useState(false)
@@ -61,7 +64,7 @@ export function ChecklistClient({ tripId, canEdit, checklists, members }: Props)
   }
 
   const deleteList = async (id: string) => {
-    if (!confirm('Delete this entire checklist?')) return
+    if (!confirm(t('cl.delete_list'))) return
     await supabase.from('checklists').delete().eq('id', id)
     router.refresh()
   }
@@ -78,7 +81,7 @@ export function ChecklistClient({ tripId, canEdit, checklists, members }: Props)
         <form onSubmit={createList} className="card-base p-3 mb-6 flex gap-2">
           <input
             type="text"
-            placeholder="New list title (e.g. Packing)"
+            placeholder={t('cl.new_title')}
             value={newListTitle}
             onChange={e => setNewListTitle(e.target.value)}
             className="flex-1 border-2 border-brand-black rounded-lg py-2 px-3 font-bold text-sm"
@@ -89,15 +92,15 @@ export function ChecklistClient({ tripId, canEdit, checklists, members }: Props)
             disabled={creating || !newListTitle.trim()}
             className="bg-brand-red text-white text-xs font-black px-4 rounded-pill border-2 border-brand-black disabled:opacity-50"
           >
-            ＋ ADD
+            ＋ {t('btn.add')}
           </button>
         </form>
       )}
 
       {checklists.length === 0 ? (
         <div className="text-center py-12 text-gray-400 text-sm">
-          — no checklists yet —
-          {canEdit && <div className="mt-1 text-xs">Create one above ↑</div>}
+          {t('cl.no_lists')}
+          {canEdit && <div className="mt-1 text-xs">{t('cl.create_above')}</div>}
         </div>
       ) : (
         <div className="space-y-6">
@@ -108,6 +111,7 @@ export function ChecklistClient({ tripId, canEdit, checklists, members }: Props)
               members={members}
               memberMap={memberMap}
               canEdit={canEdit}
+              lang={lang}
               onDelete={() => deleteList(list.id)}
             />
           ))}
@@ -119,15 +123,17 @@ export function ChecklistClient({ tripId, canEdit, checklists, members }: Props)
 
 // ===== Checklist card =====
 
-function ChecklistCard({ list, members, memberMap, canEdit, onDelete }: {
+function ChecklistCard({ list, members, memberMap, canEdit, lang, onDelete }: {
   list: Checklist
   members: Member[]
   memberMap: Record<string, string>
   canEdit: boolean
+  lang: 'th' | 'en'
   onDelete: () => void
 }) {
   const router = useRouter()
   const supabase = createClient()
+  const t = (k: TKey) => translate(lang, k)
 
   const [newItem, setNewItem] = useState('')
   const [assignTo, setAssignTo] = useState<string>('')
@@ -181,7 +187,7 @@ function ChecklistCard({ list, members, memberMap, canEdit, onDelete }: {
         <div className="flex-1 min-w-0">
           <div className="font-black text-base">{list.title.toUpperCase()}</div>
           <div className="text-[10px] text-gray-500 font-bold tracking-wider">
-            {doneCount}/{total} done · {pct}%
+            {doneCount}/{total} {t('cl.done')} · {pct}%
           </div>
         </div>
         {canEdit && (
@@ -244,7 +250,7 @@ function ChecklistCard({ list, members, memberMap, canEdit, onDelete }: {
           <div className="flex gap-1.5">
             <input
               type="text"
-              placeholder="Add item..."
+              placeholder={t('cl.add_item')}
               value={newItem}
               onChange={e => setNewItem(e.target.value)}
               maxLength={120}
@@ -255,7 +261,7 @@ function ChecklistCard({ list, members, memberMap, canEdit, onDelete }: {
               onChange={e => setAssignTo(e.target.value)}
               className="border border-gray-300 rounded-lg py-1.5 px-1 text-[10px] font-bold max-w-[80px]"
             >
-              <option value="">All</option>
+              <option value="">{t('cl.all_chip')}</option>
               {members.map(m => (
                 <option key={m.id} value={m.id}>
                   {m.user_profiles?.display_name || '?'}

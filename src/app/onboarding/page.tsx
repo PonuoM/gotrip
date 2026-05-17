@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useT } from '@/components/LangProvider'
 
 export default function OnboardingPage() {
   const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') || '/trips/new'
+  const t = useT()
 
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(true)
@@ -48,11 +50,11 @@ export default function OnboardingPage() {
     e.preventDefault()
     const trimmed = name.trim()
     if (trimmed.length < 1) {
-      setError('Name is required')
+      setError(t('onb.err_required'))
       return
     }
     if (trimmed.length > 20) {
-      setError('Keep it under 20 characters')
+      setError(t('onb.err_long'))
       return
     }
 
@@ -82,7 +84,7 @@ export default function OnboardingPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-brand-white">
-        <div className="text-xs font-bold tracking-[2px] text-gray-500">LOADING...</div>
+        <div className="text-xs font-bold tracking-[2px] text-gray-500">{t('onb.loading')}</div>
       </main>
     )
   }
@@ -92,15 +94,15 @@ export default function OnboardingPage() {
       <form onSubmit={handleSubmit} className="w-full max-w-sm">
         <div className="mb-8">
           <div className="text-[11px] font-bold uppercase tracking-[3px] text-gray-600">
-            ★ ONE LAST THING
+            {t('onb.kicker')}
           </div>
           <h1 className="mt-3 font-black tracking-tighter text-[40px] leading-none">
-            WHAT SHOULD<br/>WE CALL YOU?
+            {t('onb.heading1')}<br/>{t('onb.heading2')}
           </h1>
           <div className="brand-underline" />
           <p className="mt-4 text-sm font-medium text-gray-600 leading-relaxed">
-            A short nickname your crew will see.<br/>
-            You can change it later.
+            {t('onb.sub1')}<br/>
+            {t('onb.sub2')}
           </p>
         </div>
 
@@ -109,7 +111,7 @@ export default function OnboardingPage() {
           autoFocus
           required
           maxLength={20}
-          placeholder="e.g. Tum, Nat, Ploy"
+          placeholder={t('onb.placeholder')}
           value={name}
           onChange={e => setName(e.target.value)}
           disabled={submitting}
@@ -132,7 +134,7 @@ export default function OnboardingPage() {
           disabled={submitting || !name.trim()}
           className="btn-primary w-full mt-6 disabled:opacity-50"
         >
-          {submitting ? 'SAVING...' : 'CONTINUE →'}
+          {submitting ? t('onb.saving') : t('btn.continue')}
         </button>
       </form>
     </main>

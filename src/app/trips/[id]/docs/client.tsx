@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { t as translate, type TKey } from '@/lib/i18n'
 
 interface Doc {
   id: string
@@ -19,15 +20,16 @@ interface Props {
   tripId: string
   canEdit: boolean
   documents: Doc[]
+  lang: 'th' | 'en'
 }
 
-const CATEGORIES: { id: Doc['category']; label: string; icon: string }[] = [
-  { id: 'ticket',    label: 'Ticket',    icon: '🎫' },
-  { id: 'hotel',     label: 'Hotel',     icon: '🏨' },
-  { id: 'insurance', label: 'Insurance', icon: '🛡️' },
-  { id: 'id',        label: 'ID/Visa',   icon: '🪪' },
-  { id: 'receipt',   label: 'Receipt',   icon: '🧾' },
-  { id: 'other',     label: 'Other',     icon: '📎' },
+const CATEGORIES: { id: Doc['category']; key: TKey; icon: string }[] = [
+  { id: 'ticket',    key: 'docs.cat_ticket',    icon: '🎫' },
+  { id: 'hotel',     key: 'docs.cat_hotel',     icon: '🏨' },
+  { id: 'insurance', key: 'docs.cat_insurance', icon: '🛡️' },
+  { id: 'id',        key: 'docs.cat_id',        icon: '🪪' },
+  { id: 'receipt',   key: 'docs.cat_receipt',   icon: '🧾' },
+  { id: 'other',     key: 'docs.cat_other',     icon: '📎' },
 ]
 
 const ICON_BY_CAT: Record<Doc['category'], string> = Object.fromEntries(
@@ -41,9 +43,10 @@ function formatBytes(n: number | null): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function DocsClient({ tripId, canEdit, documents }: Props) {
+export function DocsClient({ tripId, canEdit, documents, lang }: Props) {
   const router = useRouter()
   const supabase = createClient()
+  const t = (k: TKey) => translate(lang, k)
 
   const [file, setFile] = useState<File | null>(null)
   const [category, setCategory] = useState<Doc['category']>('ticket')
@@ -54,17 +57,17 @@ export function DocsClient({ tripId, canEdit, documents }: Props) {
   const upload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) {
-      setError('Pick a file first')
+      setError(t('docs.pick_first'))
       return
     }
     if (file.size > 10 * 1024 * 1024) {
-      setError('File too big (max 10 MB)')
+      setError(t('docs.too_big'))
       return
     }
 
     setUploading(true)
     setError('')
-    setProgress('Uploading...')
+    setProgress(t('docs.uploading'))
 
     const ext = file.name.split('.').pop() || 'bin'
     const key = `${tripId}/${crypto.randomUUID()}.${ext}`
@@ -83,7 +86,7 @@ export function DocsClient({ tripId, canEdit, documents }: Props) {
       return
     }
 
-    setProgress('Saving record...')
+    setProgress(t('docs.saving'))
     const { error: dbErr } = await supabase.from('documents').insert({
       trip_id: tripId,
       filename: file.name,
@@ -136,10 +139,10 @@ export function DocsClient({ tripId, canEdit, documents }: Props) {
 
       {canEdit && (
         <form onSubmit={upload} className="card-base p-4 mb-6 space-y-3">
-          <div className="text-xs font-black tracking-[2px]">＋ UPLOAD FILE</div>
+          <div className="text-xs font-black tracking-[2px]">{t('docs.upload')}</div>
 
           <div>
-            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1.5">CATEGORY</div>
+            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1.5">{t('docs.category')}</div>
             <div className="flex flex-wrap gap-1.5">
               {CATEGORIES.map(c => (
                 <button
@@ -152,14 +155,14 @@ export function DocsClient({ tripId, canEdit, documents }: Props) {
                       : 'border-gray-200 bg-white'
                   }`}
                 >
-                  {c.icon} {c.label}
+                  {c.icon} {t(c.key)}
                 </button>
               ))}
             </div>
           </div>
 
           <label className="block">
-            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1.5">FILE (max 10MB)</div>
+            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1.5">{t('docs.file')}</div>
             <input
               type="file"
               onChange={e => setFile(e.target.files?.[0] || null)}
@@ -183,19 +186,19 @@ export function DocsClient({ tripId, canEdit, documents }: Props) {
             disabled={uploading || !file}
             className="btn-primary w-full disabled:opacity-50"
           >
-            {uploading ? 'UPLOADING...' : 'UPLOAD'}
+            {uploading ? (t('docs.uploading')).toUpperCase() : t('docs.upload_btn')}
           </button>
         </form>
       )}
 
       {/* List */}
       <div className="text-xs font-black uppercase tracking-[2px] mb-3">
-        ALL FILES · {documents.length}
+        {t('docs.all_files')} · {documents.length}
       </div>
 
       {documents.length === 0 ? (
         <div className="text-center py-12 text-gray-400 text-sm">
-          — no files yet —
+          {t('docs.no_files')}
         </div>
       ) : (
         <div className="space-y-2">
@@ -219,7 +222,7 @@ export function DocsClient({ tripId, canEdit, documents }: Props) {
                   onClick={() => download(doc)}
                   className="text-[10px] font-black tracking-wider bg-brand-black text-white rounded-pill px-3 py-1"
                 >
-                  OPEN ↗
+                  {t('docs.open')}
                 </button>
                 {canEdit && (
                   <button

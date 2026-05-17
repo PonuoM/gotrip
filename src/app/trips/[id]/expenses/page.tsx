@@ -3,9 +3,11 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { BottomNav } from '@/components/BottomNav'
 import { ExpensesClient } from './client'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function TripExpensesPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirect=/trips/${params.id}/expenses`)
@@ -53,7 +55,7 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
       .eq('status', 'approved'),
     supabase
       .from('expense_categories')
-      .select('id, label_en, icon, color')
+      .select('id, label_en, label_th, icon, color')
       .eq('is_active', true)
       .order('sort_order'),
     supabase.rpc('calculate_trip_debts', { p_trip_id: params.id }),
@@ -69,10 +71,10 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
 
         <div className="mt-4 mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            ฿ SPLIT THE BILL · ★ ★ ★
+            {t(lang, 'exp.kicker')}
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
-            EXPENSES.
+            {t(lang, 'page.expenses')}
           </h1>
           <div className="brand-underline" />
         </div>
@@ -87,6 +89,7 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
           members={members || []}
           categories={categories || []}
           debts={debts || []}
+          lang={lang}
         />
       </div>
       <BottomNav />

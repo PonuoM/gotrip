@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useT } from '@/components/LangProvider'
 
 const CURRENCIES = ['THB', 'JPY', 'USD', 'EUR', 'KRW', 'TWD']
 const STATUSES = [
@@ -27,6 +28,7 @@ interface Trip {
 export function EditTripClient({ trip }: { trip: Trip }) {
   const router = useRouter()
   const supabase = createClient()
+  const t = useT()
 
   const [form, setForm] = useState({
     name: trip.name,
@@ -50,7 +52,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
     e.preventDefault()
     if (!form.name.trim()) return
     if (form.end_date < form.start_date) {
-      setError('End date must be on or after start date')
+      setError(t('newtrip.err_dates'))
       return
     }
     setSaving(true)
@@ -78,7 +80,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
   }
 
   const archive = async () => {
-    if (!confirm('Archive this trip? It will be hidden from your active list.')) return
+    if (!confirm(t('edit.confirm_archive'))) return
     setSaving(true)
     await supabase.from('trips').update({ status: 'archived' }).eq('id', trip.id)
     router.push(`/trips/${trip.id}`)
@@ -104,7 +106,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
   return (
     <>
       <form onSubmit={save} className="space-y-4">
-        <Field label="TRIP NAME *">
+        <Field label={t('newtrip.name')}>
           <input
             type="text"
             required
@@ -115,7 +117,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
           />
         </Field>
 
-        <Field label="DESTINATION">
+        <Field label={t('newtrip.dest')}>
           <input
             type="text"
             maxLength={80}
@@ -125,7 +127,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
           />
         </Field>
 
-        <Field label="DESCRIPTION / NOTES">
+        <Field label={t('edit.notes')}>
           <textarea
             rows={3}
             maxLength={500}
@@ -136,7 +138,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="START *">
+          <Field label={t('newtrip.start')}>
             <input
               type="date"
               required
@@ -145,7 +147,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
               className="input"
             />
           </Field>
-          <Field label="END *">
+          <Field label={t('newtrip.end')}>
             <input
               type="date"
               required
@@ -158,7 +160,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="CURRENCY">
+          <Field label={t('newtrip.curr')}>
             <select
               value={form.default_currency}
               onChange={e => upd({ default_currency: e.target.value })}
@@ -167,7 +169,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
               {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
-          <Field label="BUDGET">
+          <Field label={t('newtrip.budget')}>
             <input
               type="number"
               min="0"
@@ -179,7 +181,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
           </Field>
         </div>
 
-        <Field label="STATUS">
+        <Field label={t('edit.status')}>
           <select
             value={form.status}
             onChange={e => upd({ status: e.target.value })}
@@ -196,16 +198,16 @@ export function EditTripClient({ trip }: { trip: Trip }) {
         )}
 
         {savedAt && (
-          <div className="text-xs font-bold text-green-700">✓ Saved at {savedAt}</div>
+          <div className="text-xs font-bold text-green-700">{t('settings.saved')} {savedAt}</div>
         )}
 
         <button type="submit" disabled={saving} className="btn-primary w-full disabled:opacity-50">
-          {saving ? 'SAVING...' : 'SAVE CHANGES'}
+          {saving ? t('edit.saving') : t('edit.save')}
         </button>
       </form>
 
       <div className="mt-12 border-t-2 border-dashed border-gray-200 pt-6 space-y-3">
-        <div className="text-xs font-black tracking-[2px] text-gray-500">DANGER ZONE</div>
+        <div className="text-xs font-black tracking-[2px] text-gray-500">{t('edit.danger')}</div>
 
         {form.status !== 'archived' && (
           <button
@@ -213,7 +215,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
             disabled={saving || deleting}
             className="btn-secondary w-full disabled:opacity-50"
           >
-            📦 ARCHIVE
+            {t('edit.archive')}
           </button>
         )}
 
@@ -224,7 +226,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
                      px-6 py-3.5 font-black text-sm tracking-wider
                      hover:brightness-90 active:scale-95 transition-all disabled:opacity-50"
         >
-          {deleting ? 'DELETING...' : '✗ DELETE FOREVER'}
+          {deleting ? t('edit.deleting') : t('edit.delete')}
         </button>
       </div>
 

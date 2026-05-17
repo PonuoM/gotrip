@@ -3,9 +3,11 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { BottomNav } from '@/components/BottomNav'
 import { DocsClient } from './client'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function DocsPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirect=/trips/${params.id}/docs`)
@@ -47,10 +49,10 @@ export default async function DocsPage({ params }: { params: { id: string } }) {
 
         <div className="mt-4 mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            📄 TICKETS & PASSES · ★ ★ ★
+            {t(lang, 'docs.kicker')}
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
-            DOCS.
+            {t(lang, 'page.docs')}
           </h1>
           <div className="brand-underline" />
         </div>
@@ -59,6 +61,7 @@ export default async function DocsPage({ params }: { params: { id: string } }) {
           tripId={params.id}
           canEdit={canEdit}
           documents={documents || []}
+          lang={lang}
         />
       </div>
       <BottomNav />

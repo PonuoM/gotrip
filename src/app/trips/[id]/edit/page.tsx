@@ -2,9 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { EditTripClient } from './client'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function EditTripPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirect=/trips/${params.id}/edit`)
@@ -31,10 +33,10 @@ export default async function EditTripPage({ params }: { params: { id: string } 
 
         <div className="mt-4 mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            ✎ OWNER · ★ ★ ★
+            {t(lang, 'edit.kicker')}
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[40px] leading-none">
-            EDIT TRIP.
+            {t(lang, 'edit.heading')}
           </h1>
           <div className="brand-underline" />
         </div>

@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { BottomNav } from '@/components/BottomNav'
+import { useT } from '@/components/LangProvider'
 
 export default function SettingsPage() {
   const router = useRouter()
   const supabase = createClient()
+  const t = useT()
 
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
@@ -82,7 +84,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-brand-white">
-        <div className="text-xs font-bold tracking-[2px] text-gray-500">LOADING...</div>
+        <div className="text-xs font-bold tracking-[2px] text-gray-500">{t('onb.loading')}</div>
       </main>
     )
   }
@@ -95,10 +97,10 @@ export default function SettingsPage() {
 
         <div className="mb-8">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            ◉ YOUR CREW · ★ ★ ★
+            {t('set.kicker')}
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
-            CREW.
+            {t('set.heading')}
           </h1>
           <div className="brand-underline" />
         </div>
@@ -118,7 +120,7 @@ export default function SettingsPage() {
         <form onSubmit={handleSave} className="space-y-3">
           <label className="block">
             <div className="text-[10px] font-black tracking-[2px] text-gray-600 mb-1.5">
-              DISPLAY NAME
+              {t('set.display')}
             </div>
             <input
               type="text"
@@ -150,7 +152,7 @@ export default function SettingsPage() {
             disabled={!dirty || saving || !name.trim()}
             className="btn-primary w-full disabled:opacity-50"
           >
-            {saving ? 'SAVING...' : 'SAVE CHANGES'}
+            {saving ? t('set.saving') : t('set.save_changes')}
           </button>
         </form>
 
@@ -194,7 +196,7 @@ export default function SettingsPage() {
             type="submit"
             className="btn-secondary w-full text-brand-red border-brand-red"
           >
-            SIGN OUT →
+            {t('btn.signout')}
           </button>
         </form>
 

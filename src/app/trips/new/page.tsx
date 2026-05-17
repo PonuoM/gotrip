@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useT } from '@/components/LangProvider'
 
 export default function NewTripPage() {
   const router = useRouter()
   const supabase = createClient()
+  const t = useT()
 
   const [name, setName] = useState('')
   const [destination, setDestination] = useState('')
@@ -28,11 +30,11 @@ export default function NewTripPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() || !startDate || !endDate) {
-      setError('Name, start date, and end date are required')
+      setError(t('newtrip.err'))
       return
     }
     if (endDate < startDate) {
-      setError('End date must be on or after start date')
+      setError(t('newtrip.err_dates'))
       return
     }
 
@@ -73,28 +75,28 @@ export default function NewTripPage() {
 
         <div className="flex items-center justify-between">
           <Link href="/" className="text-xs font-bold tracking-[2px] text-gray-500 no-underline">
-            ← BACK
+            {t('btn.back')}
           </Link>
         </div>
 
         <div className="mt-6 mb-8">
           <div className="text-[11px] font-bold uppercase tracking-[3px] text-gray-600">
-            ★ NEW ADVENTURE
+            {t('newtrip.kicker')}
           </div>
           <h1 className="mt-3 font-black tracking-tighter text-[40px] leading-none">
-            START A TRIP.
+            {t('newtrip.heading')}
           </h1>
           <div className="brand-underline" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          <Field label="TRIP NAME *">
+          <Field label={t('newtrip.name')}>
             <input
               type="text"
               required
               maxLength={80}
-              placeholder="Japan 2026"
+              placeholder={t('newtrip.name_ph')}
               value={name}
               onChange={e => setName(e.target.value)}
               disabled={submitting}
@@ -102,11 +104,11 @@ export default function NewTripPage() {
             />
           </Field>
 
-          <Field label="DESTINATION">
+          <Field label={t('newtrip.dest')}>
             <input
               type="text"
               maxLength={80}
-              placeholder="Tokyo, Osaka, Kyoto"
+              placeholder={t('newtrip.dest_ph')}
               value={destination}
               onChange={e => setDestination(e.target.value)}
               disabled={submitting}
@@ -115,7 +117,7 @@ export default function NewTripPage() {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="START *">
+            <Field label={t('newtrip.start')}>
               <input
                 type="date"
                 required
@@ -125,7 +127,7 @@ export default function NewTripPage() {
                 className="input"
               />
             </Field>
-            <Field label="END *">
+            <Field label={t('newtrip.end')}>
               <input
                 type="date"
                 required
@@ -139,7 +141,7 @@ export default function NewTripPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="CURRENCY">
+            <Field label={t('newtrip.curr')}>
               <select
                 value={currency}
                 onChange={e => setCurrency(e.target.value)}
@@ -154,7 +156,7 @@ export default function NewTripPage() {
                 <option value="TWD">TWD NT$</option>
               </select>
             </Field>
-            <Field label="BUDGET (optional)">
+            <Field label={t('newtrip.budget')}>
               <input
                 type="number"
                 min="0"
@@ -179,7 +181,7 @@ export default function NewTripPage() {
             disabled={submitting || !name.trim() || !startDate || !endDate}
             className="btn-primary w-full mt-2 disabled:opacity-50"
           >
-            {submitting ? 'CREATING...' : 'CREATE TRIP →'}
+            {submitting ? t('newtrip.creating') : t('newtrip.create')}
           </button>
         </form>
       </div>

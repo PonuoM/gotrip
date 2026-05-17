@@ -3,9 +3,11 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
+import { getLang, t } from '@/lib/i18n'
 
 export default async function TripsPage() {
   const supabase = createClient()
+  const lang = await getLang()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login?redirect=/trips')
@@ -36,28 +38,29 @@ export default async function TripsPage() {
 
         <div className="mb-6">
           <div className="text-[11px] font-bold uppercase tracking-[2px] text-gray-600">
-            ✈ ALL TRIPS · ★ ★ ★
+            {t(lang, 'trips.kicker')}
           </div>
           <h1 className="mt-1 text-display font-black tracking-tighter text-[44px] leading-none">
-            PLAN.
+            {t(lang, 'page.plan')}
           </h1>
           <div className="brand-underline" />
         </div>
 
         <Link href="/trips/new" className="btn-primary block text-center no-underline mb-6">
-          ＋ NEW TRIP
+          {t(lang, 'btn.new_trip')}
         </Link>
 
         {pendingTrips.length > 0 && (
           <Section
-            title={`AWAITING APPROVAL · ${pendingTrips.length}`}
+            title={`${t(lang, 'trips.awaiting')} · ${pendingTrips.length}`}
             trips={pendingTrips}
             emptyMsg=""
             pending
+            waitingLabel={t(lang, 'trips.waiting')}
           />
         )}
-        <Section title="UPCOMING" trips={upcoming} emptyMsg="No upcoming trips. Plan one ↑" />
-        <Section title="PAST" trips={past} emptyMsg="" />
+        <Section title={t(lang, 'trips.upcoming')} trips={upcoming} emptyMsg={t(lang, 'trips.no_upcoming')} />
+        <Section title={t(lang, 'trips.past')} trips={past} emptyMsg="" />
 
       </div>
 
@@ -66,8 +69,8 @@ export default async function TripsPage() {
   )
 }
 
-function Section({ title, trips, emptyMsg, pending }: {
-  title: string; trips: any[]; emptyMsg: string; pending?: boolean
+function Section({ title, trips, emptyMsg, pending, waitingLabel }: {
+  title: string; trips: any[]; emptyMsg: string; pending?: boolean; waitingLabel?: string
 }) {
   if (trips.length === 0 && !emptyMsg) return null
   return (
@@ -85,7 +88,7 @@ function Section({ title, trips, emptyMsg, pending }: {
                 <div className="flex justify-between items-baseline">
                   <div className="font-black text-base">{trip.name.toUpperCase()}</div>
                   <div className={`text-[10px] font-bold tracking-wider ${pending ? 'text-brand-red' : 'text-gray-500'}`}>
-                    {pending ? '⏳ WAITING' : trip.role.toUpperCase()}
+                    {pending ? (waitingLabel || '⏳ WAITING') : trip.role.toUpperCase()}
                   </div>
                 </div>
                 {trip.destination && (
