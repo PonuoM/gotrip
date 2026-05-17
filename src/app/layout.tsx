@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
 import { getLang } from '@/lib/i18n.server'
 import { LangProvider } from '@/components/LangProvider'
@@ -39,7 +40,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-screen">
         <LangProvider lang={lang}>
-          <RouteProgress />
+          <Suspense fallback={null}>
+            <RouteProgress />
+          </Suspense>
           {children}
         </LangProvider>
       </body>

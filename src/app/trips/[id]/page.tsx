@@ -317,9 +317,17 @@ function StatCard({ label, value, small }: { label: string; value: string; small
 
 function ActionCard({ label, sub, href, disabled }: { label: string; sub: string; href?: string; disabled?: boolean }) {
   const body = (
-    <div className={`card-base p-3.5 h-full ${disabled ? 'opacity-50' : 'hover:border-brand-red transition'}`}>
+    <div
+      className={`card-base p-3.5 h-full transition-all duration-150 ${
+        disabled
+          ? 'opacity-50'
+          : 'hover:border-brand-red active:bg-brand-red active:text-white active:border-brand-black'
+      }`}
+    >
       <div className="font-black text-sm">{label}</div>
-      <div className="text-[10px] text-gray-500 font-bold mt-0.5">{sub}</div>
+      <div className={`text-[10px] font-bold mt-0.5 ${disabled ? 'text-gray-500' : 'text-gray-500 group-active:text-white/80'}`}>
+        {sub}
+      </div>
       {disabled && (
         <div className="mt-2 text-[9px] text-brand-red font-black tracking-wider">
           COMING SOON ★
@@ -327,5 +335,9 @@ function ActionCard({ label, sub, href, disabled }: { label: string; sub: string
       )}
     </div>
   )
-  return href ? <Link href={href} className="no-underline">{body}</Link> : body
+  return href ? (
+    <Link href={href} className="no-underline block group active:scale-[0.97]">
+      {body}
+    </Link>
+  ) : body
 }

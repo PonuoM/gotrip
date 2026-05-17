@@ -162,27 +162,27 @@ export function ItineraryClient(props: Props) {
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Tokyo' }).toUpperCase()
   }
 
+  // Render the inline edit form (used both under activity rows + at day-bottom for new)
+  const renderForm = (key: string) => (
+    <div key={key} ref={formRef} className="form-flash">
+      <ActivityForm
+        editing={editing!}
+        types={types}
+        tripDays={tripDays}
+        saving={saving}
+        lang={lang}
+        onChange={setEditing}
+        onCancel={() => setEditing(null)}
+        onSubmit={save}
+      />
+    </div>
+  )
+
   return (
     <>
       {error && (
         <div className="text-sm font-bold p-3 rounded-xl border-2 bg-red-50 border-brand-red text-brand-red mb-4">
           {error}
-        </div>
-      )}
-
-      {/* Edit form (inline modal-ish) */}
-      {editing && (
-        <div ref={formRef} className="form-flash">
-          <ActivityForm
-            editing={editing}
-            types={types}
-            tripDays={tripDays}
-            saving={saving}
-            lang={lang}
-            onChange={setEditing}
-            onCancel={() => setEditing(null)}
-            onSubmit={save}
-          />
         </div>
       )}
 
@@ -194,9 +194,12 @@ export function ItineraryClient(props: Props) {
             key={day}
             title={`DAY ${day}`}
             subtitle={dayLabel(day)}
+            day={day}
             activities={list}
             typesById={typesById}
             canEdit={canEdit}
+            editing={editing}
+            renderForm={renderForm}
             onAdd={() => startNew(day)}
             onEdit={a => setEditing(a)}
             onDelete={remove}
@@ -210,9 +213,12 @@ export function ItineraryClient(props: Props) {
         <DaySection
           title="UNSCHEDULED"
           subtitle="No day assigned"
+          day={null}
           activities={byDay.get(null) || []}
           typesById={typesById}
           canEdit={canEdit}
+          editing={editing}
+          renderForm={renderForm}
           onAdd={() => startNew(null)}
           onEdit={a => setEditing(a)}
           onDelete={remove}
@@ -231,17 +237,27 @@ export function ItineraryClient(props: Props) {
 
 // ===== Day section =====
 
-function DaySection({ title, subtitle, activities, typesById, canEdit, onAdd, onEdit, onDelete, onStatus }: {
+function DaySection({
+  title, subtitle, day, activities, typesById, canEdit,
+  editing, renderForm,
+  onAdd, onEdit, onDelete, onStatus,
+}: {
   title: string
   subtitle: string
+  day: number | null
   activities: Activity[]
   typesById: Record<string, ActivityType>
   canEdit: boolean
+  editing: Partial<Activity> | null
+  renderForm: (key: string) => React.ReactNode
   onAdd: () => void
   onEdit: (a: Activity) => void
   onDelete: (id: string) => void
   onStatus: (id: string, status: Activity['status']) => void
 }) {
+  // Show "new" form at bottom of this day when user clicked +ADD here
+  const newFormHere = editing && !editing.id && editing.day_number === day
+
   return (
     <section className="mt-6">
       <div className="flex justify-between items-baseline mb-2">
@@ -249,28 +265,32 @@ function DaySection({ title, subtitle, activities, typesById, canEdit, onAdd, on
           <div className="text-xs font-black uppercase tracking-[2px]">{title}</div>
           <div className="text-[10px] text-gray-500 font-bold tracking-wider">{subtitle}</div>
         </div>
-        {canEdit && (
+        {canEdit && !newFormHere && (
           <button onClick={onAdd} className="text-[10px] font-black tracking-[2px] text-brand-red">
             ＋ ADD
           </button>
         )}
       </div>
 
-      {activities.length === 0 ? (
+      {activities.length === 0 && !newFormHere ? (
         <div className="text-center py-4 text-gray-400 text-xs">— nothing yet —</div>
       ) : (
         <div className="space-y-2">
           {activities.map(a => (
-            <ActivityCard
-              key={a.id}
-              activity={a}
-              type={a.type_id ? typesById[a.type_id] : undefined}
-              canEdit={canEdit}
-              onEdit={() => onEdit(a)}
-              onDelete={() => onDelete(a.id)}
-              onStatus={s => onStatus(a.id, s)}
-            />
+            <div key={a.id}>
+              <ActivityCard
+                activity={a}
+                type={a.type_id ? typesById[a.type_id] : undefined}
+                canEdit={canEdit}
+                isEditing={editing?.id === a.id}
+                onEdit={() => onEdit(a)}
+                onDelete={() => onDelete(a.id)}
+                onStatus={s => onStatus(a.id, s)}
+              />
+              {editing?.id === a.id && renderForm(`edit-${a.id}`)}
+            </div>
           ))}
+          {newFormHere && renderForm(`new-${day}`)}
         </div>
       )}
     </section>
@@ -279,10 +299,11 @@ function DaySection({ title, subtitle, activities, typesById, canEdit, onAdd, on
 
 // ===== Activity card =====
 
-function ActivityCard({ activity, type, canEdit, onEdit, onDelete, onStatus }: {
+function ActivityCard({ activity, type, canEdit, isEditing, onEdit, onDelete, onStatus }: {
   activity: Activity
   type?: ActivityType
   canEdit: boolean
+  isEditing?: boolean
   onEdit: () => void
   onDelete: () => void
   onStatus: (s: Activity['status']) => void
@@ -293,7 +314,7 @@ function ActivityCard({ activity, type, canEdit, onEdit, onDelete, onStatus }: {
   }) : null
 
   return (
-    <div className="card-base p-3">
+    <div className={`card-base p-3 ${isEditing ? 'border-brand-red ring-2 ring-brand-red/30' : ''}`}>
       <div className="flex items-start gap-2.5">
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0"
