@@ -36,8 +36,9 @@ export default async function DocsPage({ params }: { params: { id: string } }) {
 
   const { data: documents } = await supabase
     .from('documents')
-    .select('id, filename, file_url, file_size, mime_type, category, uploaded_at, uploaded_by')
+    .select('id, filename, display_name, description, group_id, file_url, file_size, mime_type, category, uploaded_at, uploaded_by')
     .eq('trip_id', params.id)
+    .order('group_id', { ascending: true, nullsFirst: false })
     .order('uploaded_at', { ascending: false })
 
   return (

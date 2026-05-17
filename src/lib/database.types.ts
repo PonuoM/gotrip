@@ -193,6 +193,9 @@ export type Database = {
           trip_id: string
           activity_id: string | null
           filename: string
+          display_name: string | null
+          description: string | null
+          group_id: string | null
           file_url: string
           file_size: number | null
           mime_type: string | null
@@ -265,6 +268,30 @@ export type Database = {
       approve_trip_member: {
         Args: { p_member_id: string }
         Returns: { approved: boolean; trip_id: string }
+      }
+      get_invite_preview: {
+        Args: { p_code: string }
+        Returns: {
+          id: string
+          code: string
+          role: 'editor' | 'viewer'
+          max_uses: number | null
+          used_count: number
+          expires_at: string | null
+          trip: {
+            id: string
+            name: string
+            destination: string | null
+            start_date: string
+            end_date: string
+            cover_url: string | null
+            owner_id: string
+          }
+          owner: {
+            display_name: string
+            avatar_url: string | null
+          }
+        } | null
       }
       get_trip_stats: {
         Args: { p_trip_id: string }

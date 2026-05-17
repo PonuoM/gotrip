@@ -8,31 +8,16 @@ export default async function JoinPage({ params }: { params: { code: string } })
   const { code } = params
   const supabase = createClient()
 
-  // 1. Fetch invite + trip preview (owner profile fetched separately — no direct FK from trips to user_profiles)
-  const { data: invite, error: inviteError } = await supabase
-    .from('trip_invites')
-    .select(`
-      *,
-      trips (
-        id, name, destination, start_date, end_date,
-        cover_url, owner_id
-      )
-    `)
-    .eq('code', code)
-    .single()
+  // 1. Fetch invite preview via SECURITY DEFINER RPC
+  //    (non-members can't read trip_invites directly under RLS)
+  const { data: preview, error: inviteError } = await supabase
+    .rpc('get_invite_preview', { p_code: code })
 
-  let ownerProfile: { display_name: string; avatar_url: string | null } | null = null
-  if (invite?.trips?.owner_id) {
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('display_name, avatar_url')
-      .eq('id', invite.trips.owner_id)
-      .single()
-    ownerProfile = data as any
-  }
+  const invite: any = preview
+  const ownerProfile = invite?.owner ?? null
 
   // Error states
-  if (inviteError || !invite) {
+  if (inviteError || !invite || !invite.trip) {
     return (
       <ErrorState
         title="LINK NOT FOUND."
@@ -72,12 +57,12 @@ export default async function JoinPage({ params }: { params: { code: string } })
   const { data: existing } = await supabase
     .from('trip_members')
     .select('id, status')
-    .eq('trip_id', invite.trip_id)
+    .eq('trip_id', invite.trip.id)
     .eq('user_id', user.id)
     .maybeSingle()
 
   if (existing) {
-    redirect(`/trips/${invite.trip_id}`)
+    redirect(`/trips/${invite.trip.id}`)
   }
 
   // 4. Request to join via RPC — creates a pending row
@@ -112,7 +97,7 @@ function ErrorState({ title, message }: { title: string; message: string }) {
 }
 
 function JoinPreview({ invite, owner }: { invite: any; owner: any }) {
-  const trip = invite.trips
+  const trip = invite.trip
   const days = daysUntil(trip.start_date)
 
   return (
@@ -175,7 +160,7 @@ function JoinPreview({ invite, owner }: { invite: any; owner: any }) {
 }
 
 function JoinPending({ invite, owner }: { invite: any; owner: any }) {
-  const trip = invite.trips
+  const trip = invite.trip
 
   return (
     <main className="min-h-screen bg-brand-white p-6">
