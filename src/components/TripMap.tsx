@@ -42,6 +42,7 @@ interface Props {
   myMemberId?: string
   lang?: 'th' | 'en'
   types?: ActivityTypeChip[]
+  warning?: React.ReactNode    // small "X/Y missing GPS" banner, rendered in header row
 }
 
 const DAY_COLORS = [
@@ -124,6 +125,7 @@ function FitBounds({
 
 export default function TripMap({
   tripId, activities, crewLive: initialCrew = [], myMemberId, lang = 'en', types = [],
+  warning,
 }: Props) {
   const supabase = createClient()
 
@@ -288,6 +290,26 @@ export default function TripMap({
 
   return (
     <div className="relative">
+      {/* Header row: warning text on the left, ⚙ filter button on the right */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex-1 min-w-0">
+          {warning}
+        </div>
+        <button
+          type="button"
+          onClick={() => setFilterOpen(true)}
+          className="relative shrink-0 inline-flex items-center gap-1.5 bg-brand-black text-white text-xs font-black px-3 py-2 rounded-pill border-2 border-brand-black"
+          aria-label="Filters & GPS"
+        >
+          ⚙ <span>{lang === 'th' ? 'กรอง' : 'FILTER'}</span>
+          {fabBadge > 0 && (
+            <span className="bg-brand-red text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center -mr-1">
+              {fabBadge}
+            </span>
+          )}
+        </button>
+      </div>
+
       <div className="rounded-2xl overflow-hidden border-2 border-brand-black h-[60vh] min-h-[360px] max-h-[600px]">
         <MapContainer
           center={center}
@@ -296,9 +318,11 @@ export default function TripMap({
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom
         >
+          {/* CartoDB Voyager: free, no key, colorful + modern (good for trip planning) */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            subdomains={['a', 'b', 'c', 'd']}
             maxZoom={19}
           />
 
@@ -383,21 +407,6 @@ export default function TripMap({
 
           {jittered.length > 1 && <FitBounds activities={jittered} fitKey={fitKey} />}
         </MapContainer>
-
-        {/* Floating FAB: filters + share */}
-        <button
-          type="button"
-          onClick={() => setFilterOpen(true)}
-          className="absolute bottom-3 right-3 z-[800] bg-brand-black text-white w-14 h-14 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-xl"
-          aria-label="Filters & share"
-        >
-          ⚙
-          {fabBadge > 0 && (
-            <span className="absolute -top-1 -right-1 bg-brand-red text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
-              {fabBadge}
-            </span>
-          )}
-        </button>
       </div>
 
       {/* Counter under map (subtle) */}

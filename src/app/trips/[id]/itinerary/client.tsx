@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { LocationSearch } from '@/components/LocationSearch'
+import { parseCoords, MAP_URL_RE } from '@/lib/coords'
 
 interface Activity {
   id: string
@@ -115,6 +116,27 @@ export function ItineraryClient(props: Props) {
     setSaving(true)
     setError('')
 
+    // Fallback: if user typed raw coords (or a map URL) but didn't click
+    // "Use these coords" in the dropdown, extract them now so we don't
+    // save lat/lng = null.
+    let lat = editing.latitude  ?? null
+    let lng = editing.longitude ?? null
+    const loc = editing.location_name?.trim() || ''
+    if ((lat == null || lng == null) && loc) {
+      const parsed = parseCoords(loc)
+      if (parsed) {
+        lat = parsed.lat
+        lng = parsed.lng
+      } else if (MAP_URL_RE.test(loc)) {
+        // Try resolving Google Maps share link via our API route
+        try {
+          const r = await fetch(`/api/resolve-maps?url=${encodeURIComponent(loc)}`)
+          const data = await r.json()
+          if (r.ok && !data.error) { lat = Number(data.lat); lng = Number(data.lng) }
+        } catch { /* fall through, save without coords */ }
+      }
+    }
+
     const payload = {
       trip_id: tripId,
       title: editing.title.trim(),
@@ -122,9 +144,9 @@ export function ItineraryClient(props: Props) {
       day_number: editing.day_number ?? null,
       start_at: editing.start_at || null,
       end_at: editing.end_at || null,
-      location_name: editing.location_name?.trim() || null,
-      latitude:  editing.latitude  ?? null,
-      longitude: editing.longitude ?? null,
+      location_name: loc || null,
+      latitude:  lat,
+      longitude: lng,
       cost_amount: editing.cost_amount ? Number(editing.cost_amount) : null,
       cost_currency: editing.cost_currency || currency,
       status: editing.status || 'planned',

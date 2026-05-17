@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { parseCoords, MAP_URL_RE } from '@/lib/coords'
 
 interface SearchResult {
   id: string
@@ -25,29 +26,7 @@ interface Props {
 const PHOTON    = 'https://photon.komoot.io/api'
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
 
-// Google / OSM share URL — minimal sniff
-const URL_RE   = /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl|(?:www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|osm\.org|www\.openstreetmap\.org)/i
-
-// Robust coord detection — extracts any 2 decimal numbers from input.
-// Handles: "34.6, 135.5", "34.6,135.5", "34.6 135.5", Thai/JP commas,
-// zero-width chars from mobile paste, etc.
-function parseCoords(raw: string): { lat: number; lng: number } | null {
-  // Strip zero-width / invisible chars + N/S/E/W markers
-  const cleaned = raw
-    .replace(/[​-‍﻿]/g, '')
-    .replace(/[°NSEWnsew]/g, '')
-    .trim()
-  // Pull every signed decimal number out
-  const nums = cleaned.match(/-?\d+(?:\.\d+)?/g)
-  if (!nums || nums.length !== 2) return null
-  const lat = Number(nums[0])
-  const lng = Number(nums[1])
-  if (Number.isNaN(lat) || Number.isNaN(lng)) return null
-  // Require at least one decimal point — guards against IDs / phone numbers
-  if (!nums.some(n => n.includes('.'))) return null
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
-  return { lat, lng }
-}
+const URL_RE = MAP_URL_RE
 
 export function LocationSearch({
   value, onPick, onChange, placeholder, className, disabled, lang = 'en',

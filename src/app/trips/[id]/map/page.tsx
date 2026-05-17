@@ -122,17 +122,6 @@ export default async function MapPage({ params }: { params: { id: string } }) {
           <div className="brand-underline" />
         </div>
 
-        {withoutCoords > 0 && (
-          <div className="mb-3 text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-3">
-            {lang === 'th'
-              ? `⚠ ${withoutCoords} จาก ${total} กิจกรรมยังไม่มีพิกัด — แก้ใน `
-              : `⚠ ${withoutCoords} of ${total} activities have no coordinates yet — edit in `}
-            <Link href={`/trips/${params.id}/itinerary`} className="text-brand-red underline">
-              {lang === 'th' ? 'กำหนดการ' : 'itinerary'}
-            </Link>
-          </div>
-        )}
-
         {withCoords === 0 ? (
           <div className="card-base p-8 text-center text-gray-500 text-sm">
             {lang === 'th'
@@ -147,6 +136,14 @@ export default async function MapPage({ params }: { params: { id: string } }) {
             myMemberId={myMembership.id}
             lang={lang}
             types={typesPresent}
+            warning={withoutCoords > 0 ? (
+              <div className="text-[10px] font-bold text-gray-500 truncate">
+                ⚠ {withoutCoords}/{total} {lang === 'th' ? 'ยังไม่มีพิกัด' : 'no GPS yet'} —{' '}
+                <Link href={`/trips/${params.id}/itinerary`} className="text-brand-red underline">
+                  {lang === 'th' ? 'แก้' : 'fix'}
+                </Link>
+              </div>
+            ) : null}
           />
         )}
 
