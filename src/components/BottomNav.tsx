@@ -25,10 +25,10 @@ export function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`no-underline ${active ? 'text-brand-red' : 'text-white opacity-50'}`}
+            className={`no-underline ${active ? 'text-brand-red' : 'text-white opacity-60 hover:opacity-100 transition'}`}
           >
-            <span className="mr-1">{item.icon}</span>
-            {t(item.key)}
+            <span className="nav-icon">{item.icon}</span>
+            <span className="nav-label">{t(item.key)}</span>
           </Link>
         )
       })}

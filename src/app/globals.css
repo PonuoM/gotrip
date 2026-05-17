@@ -69,8 +69,20 @@
 
   /* ===== Bottom Navigation ===== */
   .bottom-nav {
-    @apply bg-brand-black text-white flex justify-around items-center py-3
-           font-black text-[10px] tracking-wider;
+    @apply bg-brand-black text-white flex justify-around items-center
+           py-4 font-black text-xs tracking-wider;
+    /* iOS safe area */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+    padding-top: 1rem;
+  }
+  .bottom-nav a {
+    @apply flex flex-col items-center gap-0.5 px-3 py-1;
+  }
+  .bottom-nav a .nav-icon {
+    @apply text-lg leading-none;
+  }
+  .bottom-nav a .nav-label {
+    @apply text-[10px] tracking-[1.5px];
   }
 }
 

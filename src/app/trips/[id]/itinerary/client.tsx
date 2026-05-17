@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
+import { LocationSearch } from '@/components/LocationSearch'
 
 interface Activity {
   id: string
@@ -14,6 +15,8 @@ interface Activity {
   start_at: string | null
   end_at: string | null
   location_name: string | null
+  latitude: number | null
+  longitude: number | null
   cost_amount: number | null
   cost_currency: string | null
   status: 'idea' | 'planned' | 'booked' | 'done' | 'cancelled'
@@ -112,6 +115,8 @@ export function ItineraryClient(props: Props) {
       start_at: editing.start_at || null,
       end_at: editing.end_at || null,
       location_name: editing.location_name?.trim() || null,
+      latitude:  editing.latitude  ?? null,
+      longitude: editing.longitude ?? null,
       cost_amount: editing.cost_amount ? Number(editing.cost_amount) : null,
       cost_currency: editing.cost_currency || currency,
       status: editing.status || 'planned',
@@ -297,8 +302,24 @@ function ActivityCard({ activity, type, canEdit, onEdit, onDelete, onStatus }: {
           </div>
 
           {(time || activity.location_name) && (
-            <div className="text-[11px] text-gray-600 font-bold mt-0.5">
-              {time}{time && activity.location_name && ' · '}{activity.location_name}
+            <div className="text-[11px] text-gray-600 font-bold mt-0.5 flex items-center gap-1 flex-wrap">
+              {time && <span>{time}</span>}
+              {time && activity.location_name && <span className="text-gray-300">·</span>}
+              {activity.location_name && (
+                activity.latitude && activity.longitude ? (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${activity.latitude},${activity.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-red underline-offset-2 hover:underline no-underline"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    📍 {activity.location_name}
+                  </a>
+                ) : (
+                  <span>{activity.location_name}</span>
+                )
+              )}
             </div>
           )}
 
@@ -443,17 +464,25 @@ function ActivityForm({ editing, types, tripDays, saving, lang, onChange, onCanc
         </label>
       </div>
 
-      <label className="block">
-        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">LOCATION</div>
-        <input
-          type="text"
-          maxLength={120}
+      <div>
+        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">
+          {lang === 'th' ? 'สถานที่ (ค้นหา)' : 'LOCATION (search)'}
+          {editing.latitude && editing.longitude && (
+            <span className="ml-1.5 text-[9px] text-green-600">
+              📍 {Number(editing.latitude).toFixed(3)}, {Number(editing.longitude).toFixed(3)}
+            </span>
+          )}
+        </div>
+        <LocationSearch
           value={editing.location_name || ''}
-          onChange={e => upd({ location_name: e.target.value })}
-          placeholder="e.g. Shibuya"
+          onChange={text => upd({ location_name: text, latitude: null, longitude: null })}
+          onPick={({ name, lat, lng }) => upd({ location_name: name, latitude: lat, longitude: lng })}
+          placeholder={lang === 'th' ? 'เช่น Shibuya, Tsukiji Outer Market' : 'e.g. Shibuya, Tsukiji Outer Market'}
+          disabled={saving}
+          lang={lang}
           className="w-full border-2 border-brand-black rounded-lg py-2 px-3 font-bold"
         />
-      </label>
+      </div>
 
       <label className="block">
         <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">COST (optional)</div>

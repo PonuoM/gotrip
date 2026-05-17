@@ -38,7 +38,7 @@ export default async function ItineraryPage({ params }: { params: { id: string }
   const [{ data: activities }, { data: types }] = await Promise.all([
     supabase
       .from('activities')
-      .select('id, type_id, title, description, day_number, start_at, end_at, location_name, cost_amount, cost_currency, status, sort_order')
+      .select('id, type_id, title, description, day_number, start_at, end_at, location_name, latitude, longitude, cost_amount, cost_currency, status, sort_order')
       .eq('trip_id', params.id)
       .order('day_number', { ascending: true, nullsFirst: false })
       .order('start_at', { ascending: true, nullsFirst: false })
