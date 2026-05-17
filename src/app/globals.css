@@ -74,6 +74,19 @@
     /* iOS safe area */
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
     padding-top: 1rem;
+    /* Stay above Leaflet panes (default tops out around 800) */
+    z-index: 1000;
+  }
+  /* Constrain Leaflet so its controls/popups never cover bottom-nav (z=1000) */
+  .leaflet-container,
+  .leaflet-pane,
+  .leaflet-top,
+  .leaflet-bottom {
+    z-index: 1 !important;
+  }
+  .leaflet-popup-pane,
+  .leaflet-tooltip-pane {
+    z-index: 100 !important;
   }
   .bottom-nav a {
     @apply flex flex-col items-center gap-0.5 px-3 py-1;

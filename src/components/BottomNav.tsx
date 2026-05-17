@@ -16,7 +16,7 @@ export function BottomNav() {
   const pathname = usePathname()
   const t = useT()
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bottom-nav">
+    <nav className="fixed bottom-0 left-0 right-0 z-[1000] bottom-nav">
       {items.map(item => {
         const active = item.href === '/'
           ? pathname === '/'
