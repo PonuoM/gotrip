@@ -197,6 +197,20 @@ export default async function TripDetailPage({ params }: { params: { id: string 
 
         {/* Action grid */}
         <div className="mt-8 grid grid-cols-2 gap-2">
+          <Link
+            href={`/trips/${trip.id}/map`}
+            className="col-span-2 no-underline block active:scale-[0.98]"
+          >
+            <div className="card-base p-4 h-full bg-brand-black text-white border-brand-black hover:bg-brand-red active:bg-brand-red transition-all duration-150 flex items-center justify-between">
+              <div>
+                <div className="font-black text-base">🗺 {lang === 'th' ? 'แผนที่ทริป' : 'TRIP MAP'}</div>
+                <div className="text-[10px] text-white/70 font-bold mt-0.5">
+                  {lang === 'th' ? 'ดูทุกกิจกรรมบนแผนที่ + GPS เพื่อน' : 'All activities on map + crew GPS'}
+                </div>
+              </div>
+              <div className="text-2xl">→</div>
+            </div>
+          </Link>
           <ActionCard label={t(lang, 'card.itinerary')} sub={t(lang, 'card.itinerary_sub')} href={`/trips/${trip.id}/itinerary`} />
           <ActionCard label={t(lang, 'card.expenses')}  sub={t(lang, 'card.expenses_sub')}  href={`/trips/${trip.id}/expenses`} />
           <ActionCard label={t(lang, 'card.checklist')} sub={t(lang, 'card.checklist_sub')} href={`/trips/${trip.id}/checklist`} />

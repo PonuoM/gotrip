@@ -44,8 +44,9 @@ export default async function MapPage({ params }: { params: { id: string } }) {
       .order('start_at', { ascending: true, nullsFirst: false }),
     supabase
       .from('activity_types')
-      .select('id, icon')
-      .eq('is_active', true),
+      .select('id, label_en, label_th, icon, color')
+      .eq('is_active', true)
+      .order('sort_order'),
     supabase
       .from('trip_members')
       .select('id, user_id, current_lat, current_lng, current_location_at')
@@ -85,7 +86,18 @@ export default async function MapPage({ params }: { params: { id: string } }) {
       latitude: Number(a.latitude),
       longitude: Number(a.longitude),
       status: a.status,
+      type_id: a.type_id || null,
       type_icon: a.type_id ? iconByType[a.type_id] : '📍',
+    }))
+
+  // Slim down types list to those actually present, plus their pretty label
+  const usedTypeIds = new Set(pinned.map(p => p.type_id).filter(Boolean))
+  const typesPresent = (types || [])
+    .filter((t: any) => usedTypeIds.has(t.id))
+    .map((t: any) => ({
+      id: t.id,
+      icon: t.icon,
+      label: lang === 'th' ? t.label_th : t.label_en,
     }))
 
   const total = (activities || []).length
@@ -133,6 +145,7 @@ export default async function MapPage({ params }: { params: { id: string } }) {
             crewLive={crewLive}
             myMemberId={myMembership.id}
             lang={lang}
+            types={typesPresent}
           />
         )}
 

@@ -16,6 +16,7 @@ export interface MapActivity {
   latitude: number
   longitude: number
   status: string
+  type_id?: string | null
   type_icon?: string
 }
 
@@ -29,11 +30,18 @@ export interface CrewLive {
   is_me: boolean
 }
 
+export interface ActivityTypeChip {
+  id: string
+  icon: string
+  label: string
+}
+
 interface Props {
   activities: MapActivity[]
   crewLive?: CrewLive[]
   myMemberId?: string
   lang?: 'th' | 'en'
+  types?: ActivityTypeChip[]
 }
 
 // Distinct day colors
@@ -113,10 +121,64 @@ function FitBounds({ activities }: { activities: MapActivity[] }) {
   return null
 }
 
-export default function TripMap({ activities, crewLive = [], myMemberId, lang = 'en' }: Props) {
+export default function TripMap({
+  activities, crewLive = [], myMemberId, lang = 'en', types = [],
+}: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const pinned = useMemo(() => activities.filter(a => a.latitude != null && a.longitude != null), [activities])
+
+  const allPinned = useMemo(
+    () => activities.filter(a => a.latitude != null && a.longitude != null),
+    [activities]
+  )
+
+  // ===== Filters: day + type =====
+  const allDays = useMemo(
+    () => Array.from(new Set(allPinned.map(p => p.day_number).filter((d): d is number => !!d))).sort((a, b) => a - b),
+    [allPinned]
+  )
+  const [activeDays,  setActiveDays]  = useState<Set<number>>(new Set())  // empty = ALL
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set())  // empty = ALL
+
+  const pinned = useMemo(() => {
+    return allPinned.filter(p => {
+      if (activeDays.size > 0 && (!p.day_number || !activeDays.has(p.day_number))) return false
+      if (activeTypes.size > 0 && (!p.type_id || !activeTypes.has(p.type_id))) return false
+      return true
+    })
+  }, [allPinned, activeDays, activeTypes])
+
+  // Offset pins that share exact coords (jitter) so check-in/check-out don't hide each other
+  const jittered = useMemo(() => {
+    const seen = new Map<string, number>()
+    return pinned.map(p => {
+      const key = `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`
+      const n = seen.get(key) ?? 0
+      seen.set(key, n + 1)
+      if (n === 0) return p
+      // Offset in a tiny spiral; ~10–15 m per ring
+      const angle = (n * 137.5) * Math.PI / 180  // golden angle
+      const radius = 0.00012 * Math.ceil(n / 8)
+      return {
+        ...p,
+        latitude:  p.latitude  + Math.sin(angle) * radius,
+        longitude: p.longitude + Math.cos(angle) * radius,
+      }
+    })
+  }, [pinned])
+
+  const toggleDay  = (d: number) => setActiveDays(prev => {
+    const next = new Set(prev)
+    next.has(d) ? next.delete(d) : next.add(d)
+    return next
+  })
+  const toggleType = (id: string) => setActiveTypes(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+  const clearAll = () => { setActiveDays(new Set()); setActiveTypes(new Set()) }
+  const filterActive = activeDays.size + activeTypes.size > 0
 
   // ===== Share-my-location state =====
   const [sharing, setSharing] = useState(false)
@@ -193,8 +255,8 @@ export default function TripMap({ activities, crewLive = [], myMemberId, lang = 
     }
   }, [router])
 
-  const center: [number, number] = pinned.length > 0
-    ? [Number(pinned[0].latitude), Number(pinned[0].longitude)]
+  const center: [number, number] = jittered.length > 0
+    ? [Number(jittered[0].latitude), Number(jittered[0].longitude)]
     : [35.6762, 139.6503]
 
   // Exclude self from `crewLive` if we're currently sharing (avoid double-pin)
@@ -233,6 +295,79 @@ export default function TripMap({ activities, crewLive = [], myMemberId, lang = 
         </button>
       </div>
 
+      {/* Filters */}
+      {(allDays.length > 0 || types.length > 0) && (
+        <div className="card-base p-3 space-y-2">
+          {allDays.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[9px] font-black tracking-[1.5px] text-gray-600">
+                  {lang === 'th' ? 'กรองตามวัน' : 'BY DAY'}
+                </div>
+                {filterActive && (
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="text-[10px] font-black text-brand-red"
+                  >
+                    {lang === 'th' ? '✗ ล้าง' : '✗ CLEAR'}
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {allDays.map(d => {
+                  const colors = ['#E63946','#185FA5','#0F6E56','#993556','#534AB7','#993C1D','#444441','#888780']
+                  const c = colors[(d - 1) % colors.length]
+                  const on = activeDays.has(d) || activeDays.size === 0
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => toggleDay(d)}
+                      className={`text-[11px] font-black px-2.5 py-1 rounded-pill border-2 transition ${
+                        on ? 'text-white' : 'bg-white text-gray-400 border-gray-200'
+                      }`}
+                      style={on ? { backgroundColor: c, borderColor: '#1A1A1A' } : undefined}
+                    >
+                      {lang === 'th' ? `วัน ${d}` : `DAY ${d}`}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          {types.length > 0 && (
+            <div>
+              <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1.5">
+                {lang === 'th' ? 'กรองตามประเภท' : 'BY TYPE'}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {types.map(t => {
+                  const on = activeTypes.has(t.id) || activeTypes.size === 0
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => toggleType(t.id)}
+                      className={`text-[11px] font-bold px-2 py-1 rounded-pill border-2 transition ${
+                        on
+                          ? 'border-brand-black bg-brand-black text-white'
+                          : 'border-gray-200 bg-white text-gray-400'
+                      }`}
+                    >
+                      {t.icon} {t.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          <div className="text-[10px] text-gray-500 font-bold pt-1">
+            {lang === 'th' ? 'แสดง' : 'Showing'} {jittered.length}/{allPinned.length} {lang === 'th' ? 'จุด' : 'pins'}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-2xl overflow-hidden border-2 border-brand-black h-[50vh] min-h-[320px] max-h-[520px]">
         <MapContainer
           center={center}
@@ -247,8 +382,8 @@ export default function TripMap({ activities, crewLive = [], myMemberId, lang = 
             maxZoom={19}
           />
 
-          {/* Activity pins */}
-          {pinned.map(a => (
+          {/* Activity pins (jittered to separate overlaps) */}
+          {jittered.map(a => (
             <Marker
               key={a.id}
               position={[Number(a.latitude), Number(a.longitude)]}
@@ -334,7 +469,7 @@ export default function TripMap({ activities, crewLive = [], myMemberId, lang = 
             )
           })}
 
-          {pinned.length > 1 && <FitBounds activities={pinned} />}
+          {jittered.length > 1 && <FitBounds activities={jittered} />}
         </MapContainer>
       </div>
     </div>
