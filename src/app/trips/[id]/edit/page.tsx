@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { EditTripClient } from './client'
-import { getLang, t } from '@/lib/i18n'
+import { t } from '@/lib/i18n'
+import { getLang } from '@/lib/i18n.server'
 
 export default async function EditTripPage({ params }: { params: { id: string } }) {
   const supabase = createClient()

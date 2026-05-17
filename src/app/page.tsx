@@ -6,7 +6,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
-import { getLang, t } from '@/lib/i18n'
+import { t } from '@/lib/i18n'
+import { getLang } from '@/lib/i18n.server'
 
 export default async function HomePage() {
   const supabase = createClient()

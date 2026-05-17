@@ -1,24 +1,12 @@
 // ==========================================================================
 // Lightweight i18n — Thai + English
-// Server pages: call getLang() to read from user_profiles.preferred_lang
-// Client components: receive lang as prop
+//
+// This file is safe to import from both Client and Server components — it
+// contains only pure translations. Server-only helpers (getLang) live in
+// i18n.server.ts to avoid pulling next/headers into client bundles.
 // ==========================================================================
 
-import { createClient } from '@/lib/supabase/server'
-
 export type Lang = 'th' | 'en'
-
-export async function getLang(): Promise<Lang> {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return 'th'
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('preferred_lang')
-    .eq('id', user.id)
-    .single()
-  return (profile?.preferred_lang === 'en' ? 'en' : 'th')
-}
 
 // ===== Translations =====
 

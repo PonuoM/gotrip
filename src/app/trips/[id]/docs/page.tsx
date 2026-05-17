@@ -3,7 +3,8 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { BottomNav } from '@/components/BottomNav'
 import { DocsClient } from './client'
-import { getLang, t } from '@/lib/i18n'
+import { t } from '@/lib/i18n'
+import { getLang } from '@/lib/i18n.server'
 
 export default async function DocsPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
