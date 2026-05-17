@@ -82,7 +82,7 @@ export default function TripMap({ activities }: Props) {
     : [35.6762, 139.6503]
 
   return (
-    <div className="rounded-2xl overflow-hidden border-2 border-brand-black h-[60vh] min-h-[400px]">
+    <div className="rounded-2xl overflow-hidden border-2 border-brand-black h-[50vh] min-h-[320px] max-h-[520px]">
       <MapContainer
         center={center}
         zoom={11}

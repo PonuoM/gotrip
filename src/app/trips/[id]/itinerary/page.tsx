@@ -56,7 +56,7 @@ export default async function ItineraryPage({ params }: { params: { id: string }
   const tripDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         <div className="flex justify-between items-center">

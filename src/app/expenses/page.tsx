@@ -43,7 +43,7 @@ export default async function ExpensesPage() {
   const grandTotal = Array.from(totals.values()).reduce((a, b) => a + b, 0)
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         <div className="mb-6">

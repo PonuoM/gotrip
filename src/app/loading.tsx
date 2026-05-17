@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6 animate-pulse">
 
         {/* Header skeleton */}

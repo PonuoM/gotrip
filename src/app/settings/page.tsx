@@ -92,7 +92,7 @@ export default function SettingsPage() {
   const dirty = name.trim() !== originalName
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         <div className="mb-8">

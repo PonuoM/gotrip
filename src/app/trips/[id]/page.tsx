@@ -86,7 +86,7 @@ export default async function TripDetailPage({ params }: { params: { id: string 
     : 0
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         {/* Back + Edit (owner) */}
@@ -219,7 +219,7 @@ export default async function TripDetailPage({ params }: { params: { id: string 
 
 function WaitingScreen({ trip, ownerName }: { trip: any; ownerName?: string }) {
   return (
-    <main className="min-h-screen bg-brand-white p-6 pb-24">
+    <main className="min-h-screen bg-brand-white p-6 pb-28">
       <div className="max-w-sm mx-auto pt-12 text-center">
 
         <div className="text-5xl">⏳</div>

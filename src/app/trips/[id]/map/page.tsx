@@ -69,7 +69,7 @@ export default async function MapPage({ params }: { params: { id: string } }) {
   const withoutCoords = total - withCoords
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         <Link href={`/trips/${params.id}/itinerary`} className="text-xs font-bold tracking-[2px] text-gray-500 no-underline">

@@ -43,7 +43,7 @@ export default async function HomePage() {
   const otherTrips = allTrips.filter((t: any) => t.id !== activeTrip?.id)
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         {/* Header */}

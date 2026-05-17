@@ -58,7 +58,7 @@ export default async function MembersPage({ params }: { params: { id: string } }
   const pending  = members.filter((m: any) => m.status === 'pending')
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         <Link

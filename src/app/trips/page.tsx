@@ -34,7 +34,7 @@ export default async function TripsPage() {
   const past = approvedTrips.filter((t: any) => daysUntil(t.end_date) < 0 || t.status === 'archived')
 
   return (
-    <main className="min-h-screen bg-brand-white pb-24">
+    <main className="min-h-screen bg-brand-white pb-28">
       <div className="max-w-md mx-auto p-6">
 
         <div className="mb-6">
