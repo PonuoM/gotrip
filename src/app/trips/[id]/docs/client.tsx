@@ -370,7 +370,7 @@ export function DocsClient({ tripId, canEdit, documents, lang }: Props) {
                         )}
                         <div className="text-[10px] text-gray-500 font-bold mt-0.5">
                           {first.category.toUpperCase()}
-                          {' · '}{new Date(first.uploaded_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB')}
+                          {' · '}{new Date(first.uploaded_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok' })}
                         </div>
                       </div>
                     </div>

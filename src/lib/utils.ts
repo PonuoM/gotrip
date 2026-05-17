@@ -18,13 +18,15 @@ export function formatCurrency(amount: number, currency = 'THB'): string {
   }).format(amount)
 }
 
-// Format date (Thai locale)
+// Format date (Thai locale) — forces Asia/Bangkok timezone so server (Vercel)
+// and client (browser) render identically, avoiding hydration mismatches.
 export function formatDate(date: string | Date, locale = 'th-TH'): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: 'Asia/Bangkok',
   })
 }
 

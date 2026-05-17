@@ -116,7 +116,7 @@ export default function TripMap({ activities }: Props) {
               )}
               {a.start_at && (
                 <div className="text-[11px] text-gray-500 mt-0.5">
-                  {new Date(a.start_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(a.start_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })}
                 </div>
               )}
               <a

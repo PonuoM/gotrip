@@ -330,7 +330,7 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdi
           </div>
           <div className="text-[11px] text-gray-500 font-bold mt-0.5">
             {t('exp.paid_by_label')} {payer?.user_profiles?.display_name || (lang === 'th' ? 'ไม่ทราบ' : 'Unknown')}
-            {' · '}{new Date(expense.paid_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB')}
+            {' · '}{new Date(expense.paid_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok' })}
             {' · '}
             {allSettled
               ? <span className="text-green-700">{t('exp.all_settled')}</span>

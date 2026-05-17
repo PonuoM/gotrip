@@ -151,7 +151,7 @@ export function ItineraryClient(props: Props) {
   const dayLabel = (day: number) => {
     const d = new Date(tripStart)
     d.setDate(d.getDate() + day - 1)
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Tokyo' }).toUpperCase()
   }
 
   return (
@@ -279,6 +279,7 @@ function ActivityCard({ activity, type, canEdit, onEdit, onDelete, onStatus }: {
 }) {
   const time = activity.start_at ? new Date(activity.start_at).toLocaleTimeString('en-GB', {
     hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Tokyo',
   }) : null
 
   return (
