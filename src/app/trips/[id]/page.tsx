@@ -258,9 +258,9 @@ function CrownBadge() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="22"
-      height="22"
-      className="absolute -top-2.5 -right-2 z-10 crown-wobble drop-shadow-[1px_1px_0_#1A1A1A]"
+      width="20"
+      height="20"
+      className="absolute -top-2 -left-1.5 z-10 crown-wobble drop-shadow-[1px_1px_0_#1A1A1A]"
       aria-label="owner"
     >
       <defs>
