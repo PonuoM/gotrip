@@ -173,22 +173,25 @@ export default async function TripDetailPage({ params }: { params: { id: string 
               {t(lang, 'btn.manage')}
             </Link>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {approvedMembers.map((m: any) => (
-              <div key={m.id} className="flex items-center gap-2 card-base px-3 py-2">
-                <div className="w-7 h-7 rounded-full bg-brand-red text-white flex items-center justify-center font-black text-xs">
-                  {m.user_profiles?.display_name?.[0]?.toUpperCase() || '?'}
-                </div>
-                <div>
-                  <div className="font-black text-xs">
-                    {m.user_profiles?.display_name?.toUpperCase() || 'UNKNOWN'}
+          <div className="flex flex-wrap gap-3 items-start">
+            {approvedMembers.map((m: any) => {
+              const name = m.user_profiles?.display_name || '?'
+              const initial = name[0]?.toUpperCase() || '?'
+              const isOwner = m.role === 'owner'
+              return (
+                <div key={m.id} className="flex flex-col items-center gap-1">
+                  <div className="relative">
+                    {isOwner && <CrownBadge />}
+                    <div className="w-10 h-10 rounded-full bg-brand-red text-white flex items-center justify-center font-black text-sm border-2 border-brand-black">
+                      {initial}
+                    </div>
                   </div>
-                  <div className="text-[9px] text-gray-500 font-bold tracking-wider">
-                    {m.role.toUpperCase()}
+                  <div className="text-[10px] font-black tracking-wider text-center max-w-[60px] truncate">
+                    {name.toUpperCase()}
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
@@ -248,6 +251,56 @@ function WaitingScreen({ trip, ownerName }: { trip: any; ownerName?: string }) {
       </div>
       <BottomNav />
     </main>
+  )
+}
+
+function CrownBadge() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      className="absolute -top-2.5 -right-2 z-10 crown-wobble drop-shadow-[1px_1px_0_#1A1A1A]"
+      aria-label="owner"
+    >
+      <defs>
+        <linearGradient id="crownGold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#FFE176" />
+          <stop offset="55%"  stopColor="#F5B500" />
+          <stop offset="100%" stopColor="#B47A00" />
+        </linearGradient>
+        <linearGradient id="crownShine" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="#FFF" stopOpacity="0" />
+          <stop offset="50%"  stopColor="#FFF" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#FFF" stopOpacity="0" />
+        </linearGradient>
+        <clipPath id="crownClip">
+          <path d="M3 9.5 L7.5 13 L12 6 L16.5 13 L21 9.5 L19.5 17 H4.5 Z" />
+        </clipPath>
+      </defs>
+
+      {/* Crown body */}
+      <path
+        d="M3 9.5 L7.5 13 L12 6 L16.5 13 L21 9.5 L19.5 17 H4.5 Z"
+        fill="url(#crownGold)"
+        stroke="#1A1A1A"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+
+      {/* Gem on top */}
+      <circle cx="12" cy="5" r="1.4" fill="#E63946" stroke="#1A1A1A" strokeWidth="0.8" />
+      <circle cx="3"  cy="9.5" r="1.1" fill="#5DCAA5" stroke="#1A1A1A" strokeWidth="0.7" />
+      <circle cx="21" cy="9.5" r="1.1" fill="#5DCAA5" stroke="#1A1A1A" strokeWidth="0.7" />
+
+      {/* Base band */}
+      <rect x="4.5" y="16.5" width="15" height="2" fill="#7A4F00" stroke="#1A1A1A" strokeWidth="0.8" />
+
+      {/* Animated shine sweep */}
+      <g clipPath="url(#crownClip)">
+        <rect className="crown-shine" x="-8" y="0" width="6" height="24" fill="url(#crownShine)" />
+      </g>
+    </svg>
   )
 }
 

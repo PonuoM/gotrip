@@ -87,4 +87,24 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* ===== Crown badge (owner avatar) ===== */
+  /* Tilted crown that wobbles gently */
+  .crown-wobble {
+    transform-origin: 50% 90%;
+    animation: crown-wobble 3.2s ease-in-out infinite;
+  }
+  @keyframes crown-wobble {
+    0%, 100% { transform: rotate(-18deg) translateY(0); }
+    50%      { transform: rotate(-10deg) translateY(-1px); }
+  }
+  /* Shine sweep across the crown */
+  .crown-shine {
+    animation: crown-shine 3.2s ease-in-out infinite;
+  }
+  @keyframes crown-shine {
+    0%, 100% { transform: translateX(0);  opacity: 0; }
+    35%      { transform: translateX(12px); opacity: 1; }
+    55%      { transform: translateX(28px); opacity: 0; }
+  }
 }
