@@ -1,6 +1,6 @@
 import Image from 'next/image'
 
-export const AVATAR_ANIMALS = ['cat', 'dog', 'bear', 'panda', 'rabbit'] as const
+export const AVATAR_ANIMALS = ['cat', 'dog', 'bear', 'panda', 'rabbit', 'koala'] as const
 export type AvatarAnimal = typeof AVATAR_ANIMALS[number]
 
 export const AVATAR_LABELS: Record<AvatarAnimal, { th: string; en: string; emoji: string }> = {
@@ -9,6 +9,7 @@ export const AVATAR_LABELS: Record<AvatarAnimal, { th: string; en: string; emoji
   bear:   { th: 'หมี',    en: 'Bear',   emoji: '🐻' },
   panda:  { th: 'แพนด้า',  en: 'Panda',  emoji: '🐼' },
   rabbit: { th: 'กระต่าย', en: 'Rabbit', emoji: '🐰' },
+  koala:  { th: 'โคอาลา', en: 'Koala',  emoji: '🐨' },
 }
 
 export const AVATAR_COLORS = [
