@@ -108,21 +108,25 @@ export function ExpensesClient(props: Props) {
     return paid - owed
   }, [expenses, myMemberId])
 
-  // Top spenders — total each member used = sum of their splits
-  // (their share of shared expenses + their personal expenses)
-  const leaderboard = useMemo(() => {
-    const totals = new Map<string, number>()
-    for (const exp of expenses) {
-      for (const split of exp.expense_splits) {
-        if (!split.member_id) continue
-        totals.set(split.member_id, (totals.get(split.member_id) || 0) + Number(split.share_amount))
-      }
-    }
-    return Array.from(totals.entries())
-      .map(([memberId, total]) => ({ memberId, member: memberMap[memberId], total }))
-      .filter(x => x.member)
-      .sort((a, b) => b.total - a.total)
-  }, [expenses, memberMap])
+  // ===== List filter / sort =====
+  type ModeFilter = 'all' | 'personal' | 'shared'
+  type SortBy = 'default' | 'desc' | 'asc'
+  const [filterMode, setFilterMode] = useState<ModeFilter>('all')
+  const [sortBy, setSortBy] = useState<SortBy>('default')
+
+  const isPersonalExp = (e: Expense) =>
+    e.expense_splits.length === 1 &&
+    e.expense_splits[0].member_id != null &&
+    e.expense_splits[0].member_id === e.paid_by
+
+  const visibleExpenses = useMemo(() => {
+    let list: Expense[] = expenses
+    if (filterMode === 'personal') list = list.filter(isPersonalExp)
+    else if (filterMode === 'shared') list = list.filter(e => !isPersonalExp(e))
+    if (sortBy === 'desc') list = [...list].sort((a, b) => Number(b.amount) - Number(a.amount))
+    else if (sortBy === 'asc') list = [...list].sort((a, b) => Number(a.amount) - Number(b.amount))
+    return list
+  }, [expenses, filterMode, sortBy])
 
   // ===== New / Edit form state =====
   const [editing, setEditing] = useState<null | {
@@ -332,63 +336,6 @@ export function ExpensesClient(props: Props) {
         </div>
       )}
 
-      {/* Top spenders leaderboard */}
-      {leaderboard.length >= 1 && (
-        <div className="mt-5">
-          <div className="mb-2">
-            <div className="text-xs font-black uppercase tracking-[2px] flex items-center gap-1.5">
-              <span>🏆</span>
-              <span>{lang === 'th' ? 'เจ้าบุญทุ่ม' : 'Top spenders'}</span>
-              {leaderboard.length === 1 && (
-                <span className="text-[9px] font-bold text-gray-400 normal-case tracking-normal">
-                  · {lang === 'th' ? 'ยังมีแค่คุณ' : 'just you so far'}
-                </span>
-              )}
-            </div>
-            <div className="text-[10px] font-bold text-gray-400 mt-0.5">
-              {lang === 'th' ? 'ยอดรวม = ส่วนแบ่งจากหาร + ส่วนตัว' : 'Total = shared split + personal'}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            {leaderboard.slice(0, 3).map((row, idx) => {
-              const medal = ['🥇', '🥈', '🥉'][idx]
-              const tint = [
-                'bg-yellow-50 border-yellow-300',
-                'bg-gray-50 border-gray-300',
-                'bg-orange-50 border-orange-300',
-              ][idx]
-              const barColor = ['bg-yellow-400', 'bg-gray-400', 'bg-orange-400'][idx]
-              const pct = (row.total / leaderboard[0].total) * 100
-              const isMe = row.memberId === myMemberId
-              return (
-                <div key={row.memberId} className={`rounded-xl border-2 p-2.5 flex items-center gap-2.5 ${tint}`}>
-                  <span className="text-xl shrink-0">{medal}</span>
-                  <AvatarBadge
-                    animal={row.member.user_profiles?.avatar_animal}
-                    bgColor={row.member.user_profiles?.avatar_bg_color}
-                    fallbackLetter={row.member.user_profiles?.display_name?.[0]}
-                    size="sm"
-                    ringClass={isMe ? 'ring-2 ring-brand-red' : ''}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-black truncate">
-                      {row.member.user_profiles?.display_name || '?'}
-                      {isMe && <span className="ml-1 text-[9px] text-brand-red">★</span>}
-                    </div>
-                    <div className="h-1.5 bg-white rounded-full overflow-hidden mt-1">
-                      <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                  <div className="text-xs font-black shrink-0">
-                    {formatCurrency(row.total, currency)}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {canEdit && !editing && (
         <div className="mt-6 grid grid-cols-2 gap-2">
           <button onClick={() => startNew('personal')} className="rounded-pill border-2 border-brand-black bg-white text-brand-black font-black tracking-wider text-xs py-3 active:scale-95 transition">
@@ -416,14 +363,68 @@ export function ExpensesClient(props: Props) {
 
       {/* List */}
       <div className="mt-8">
-        <div className="text-xs font-black uppercase tracking-[2px] mb-3">
-          {t('exp.all_expenses')} · {expenses.length}
+        <div className="flex justify-between items-baseline mb-2">
+          <div className="text-xs font-black uppercase tracking-[2px]">
+            {t('exp.all_expenses')} · {visibleExpenses.length}
+            {visibleExpenses.length !== expenses.length && (
+              <span className="text-gray-400"> / {expenses.length}</span>
+            )}
+          </div>
         </div>
-        {expenses.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 text-sm">{t('exp.no_expenses')}</div>
+
+        {/* Filter pills — type */}
+        <div className="flex gap-1 mb-2 overflow-x-auto -mx-1 px-1">
+          {([
+            ['all',      lang === 'th' ? 'ทั้งหมด'  : 'ALL'],
+            ['shared',   lang === 'th' ? '👥 หาร'   : '👥 SHARED'],
+            ['personal', lang === 'th' ? '🍙 ส่วนตัว' : '🍙 PERSONAL'],
+          ] as [ModeFilter, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFilterMode(key)}
+              className={`text-[10px] font-black tracking-wider px-2.5 py-1.5 rounded-pill border-2 whitespace-nowrap transition ${
+                filterMode === key
+                  ? 'bg-brand-black text-white border-brand-black'
+                  : 'bg-white text-gray-500 border-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort pills */}
+        <div className="flex gap-1 mb-3 overflow-x-auto -mx-1 px-1">
+          {([
+            ['default', lang === 'th' ? '🕒 ตามระบบ'    : '🕒 NEWEST'],
+            ['desc',    lang === 'th' ? '💸 แพง → ถูก'  : '💸 HIGH → LOW'],
+            ['asc',     lang === 'th' ? '🪙 ถูก → แพง'  : '🪙 LOW → HIGH'],
+          ] as [SortBy, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSortBy(key)}
+              className={`text-[10px] font-black tracking-wider px-2.5 py-1.5 rounded-pill border-2 whitespace-nowrap transition ${
+                sortBy === key
+                  ? 'bg-brand-red text-white border-brand-red'
+                  : 'bg-white text-gray-500 border-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {visibleExpenses.length === 0 ? (
+          <div className="text-center py-8 text-gray-400 text-sm">
+            {expenses.length === 0
+              ? t('exp.no_expenses')
+              : (lang === 'th' ? 'ไม่มีรายการที่ตรงกับตัวกรอง' : 'No expenses match the filter')}
+          </div>
         ) : (
           <div className="space-y-2">
-            {expenses.map(exp => (
+            {visibleExpenses.map(exp => (
               <ExpenseCard
                 key={exp.id}
                 tripId={tripId}
