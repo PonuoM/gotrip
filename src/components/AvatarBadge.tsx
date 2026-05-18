@@ -56,7 +56,9 @@ export function AvatarBadge({
           alt={animal as string}
           width={px}
           height={px}
-          className="object-contain w-full h-full"
+          // Scale up to compensate for the transparent padding around each
+          // sticker, and nudge down a touch so the head reads as centred.
+          className="object-contain w-full h-full scale-[1.4] translate-y-[6%]"
           priority={false}
         />
       ) : (
