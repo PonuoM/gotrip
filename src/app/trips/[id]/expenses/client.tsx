@@ -114,6 +114,7 @@ export function ExpensesClient(props: Props) {
   type SortBy = 'default' | 'desc' | 'asc'
   const [filterMode, setFilterMode] = useState<ModeFilter>('all')
   const [sortBy, setSortBy] = useState<SortBy>('default')
+  const [filterOpen, setFilterOpen] = useState(false)
 
   const isPersonalExp = (e: Expense) =>
     e.expense_splits.length === 1 &&
@@ -128,6 +129,18 @@ export function ExpensesClient(props: Props) {
     else if (sortBy === 'asc') list = [...list].sort((a, b) => Number(a.amount) - Number(b.amount))
     return list
   }, [expenses, filterMode, sortBy])
+
+  const hasActiveFilters = filterMode !== 'all' || sortBy !== 'default'
+
+  const modeLabel = (m: ModeFilter) =>
+    m === 'all'      ? (lang === 'th' ? 'ทั้งหมด' : 'All')
+    : m === 'shared' ? (lang === 'th' ? '👥 หาร' : '👥 Shared')
+    :                  (lang === 'th' ? '🍙 ส่วนตัว' : '🍙 Personal')
+
+  const sortLabel = (s: SortBy) =>
+    s === 'default' ? (lang === 'th' ? '🕒 ตามระบบ' : '🕒 Newest')
+    : s === 'desc'  ? (lang === 'th' ? '💸 แพง→ถูก' : '💸 High→Low')
+    :                 (lang === 'th' ? '🪙 ถูก→แพง' : '🪙 Low→High')
 
   // ===== New / Edit form state =====
   const [editing, setEditing] = useState<null | {
@@ -370,57 +383,27 @@ export function ExpensesClient(props: Props) {
 
       {/* List */}
       <div className="mt-8">
-        <div className="flex justify-between items-baseline mb-2">
+        <div className="flex justify-between items-center mb-3 gap-2">
           <div className="text-xs font-black uppercase tracking-[2px]">
             {t('exp.all_expenses')} · {visibleExpenses.length}
             {visibleExpenses.length !== expenses.length && (
               <span className="text-gray-400"> / {expenses.length}</span>
             )}
           </div>
-        </div>
-
-        {/* Filter pills — type */}
-        <div className="flex gap-1 mb-2 overflow-x-auto -mx-1 px-1">
-          {([
-            ['all',      lang === 'th' ? 'ทั้งหมด'  : 'ALL'],
-            ['shared',   lang === 'th' ? '👥 หาร'   : '👥 SHARED'],
-            ['personal', lang === 'th' ? '🍙 ส่วนตัว' : '🍙 PERSONAL'],
-          ] as [ModeFilter, string][]).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilterMode(key)}
-              className={`text-[10px] font-black tracking-wider px-2.5 py-1.5 rounded-pill border-2 whitespace-nowrap transition ${
-                filterMode === key
-                  ? 'bg-brand-black text-white border-brand-black'
-                  : 'bg-white text-gray-500 border-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Sort pills */}
-        <div className="flex gap-1 mb-3 overflow-x-auto -mx-1 px-1">
-          {([
-            ['default', lang === 'th' ? '🕒 ตามระบบ'    : '🕒 NEWEST'],
-            ['desc',    lang === 'th' ? '💸 แพง → ถูก'  : '💸 HIGH → LOW'],
-            ['asc',     lang === 'th' ? '🪙 ถูก → แพง'  : '🪙 LOW → HIGH'],
-          ] as [SortBy, string][]).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setSortBy(key)}
-              className={`text-[10px] font-black tracking-wider px-2.5 py-1.5 rounded-pill border-2 whitespace-nowrap transition ${
-                sortBy === key
-                  ? 'bg-brand-red text-white border-brand-red'
-                  : 'bg-white text-gray-500 border-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            className={`relative text-[10px] font-black tracking-wider px-3 py-1.5 rounded-pill border-2 whitespace-nowrap ${
+              hasActiveFilters
+                ? 'bg-brand-black text-white border-brand-black'
+                : 'bg-white text-gray-500 border-gray-200'
+            }`}
+          >
+            ⚙ {lang === 'th' ? 'ตัวกรอง' : 'FILTER'} ▾
+            {hasActiveFilters && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-brand-red rounded-full border-2 border-white" />
+            )}
+          </button>
         </div>
 
         {visibleExpenses.length === 0 ? (
@@ -449,6 +432,100 @@ export function ExpensesClient(props: Props) {
           </div>
         )}
       </div>
+
+      {/* Filter bottom sheet */}
+      {filterOpen && (
+        <div
+          className="fixed inset-0 z-[9000] flex items-end justify-center bg-black/50 backdrop-blur-[2px] dialog-fade"
+          onMouseDown={() => setFilterOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white border-2 border-brand-black rounded-t-2xl p-5 pb-7 dialog-rise"
+            onMouseDown={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <div className="text-xs font-black tracking-[2px]">
+                ⚙ {lang === 'th' ? 'ตัวกรอง' : 'FILTER'}
+              </div>
+              <button
+                type="button"
+                onClick={() => setFilterOpen(false)}
+                className="text-gray-400 text-lg leading-none w-7 h-7 flex items-center justify-center"
+                aria-label="close"
+              >
+                ✗
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <div className="text-[10px] font-black tracking-[1.5px] text-gray-500 mb-2">
+                  {lang === 'th' ? 'ประเภท' : 'TYPE'}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['all', 'shared', 'personal'] as ModeFilter[]).map(key => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setFilterMode(key)}
+                      className={`text-[11px] font-black tracking-wider px-3 py-2 rounded-pill border-2 transition ${
+                        filterMode === key
+                          ? 'bg-brand-black text-white border-brand-black'
+                          : 'bg-white text-gray-500 border-gray-200'
+                      }`}
+                    >
+                      {modeLabel(key)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-black tracking-[1.5px] text-gray-500 mb-2">
+                  {lang === 'th' ? 'เรียงลำดับ' : 'SORT'}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(['default', 'desc', 'asc'] as SortBy[]).map(key => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSortBy(key)}
+                      className={`text-[11px] font-black tracking-wider px-3 py-2 rounded-pill border-2 transition ${
+                        sortBy === key
+                          ? 'bg-brand-red text-white border-brand-red'
+                          : 'bg-white text-gray-500 border-gray-200'
+                      }`}
+                    >
+                      {sortLabel(key)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => { setFilterMode('all'); setSortBy('default') }}
+                  className="text-[11px] font-black tracking-wider px-4 py-2.5 rounded-pill border-2 border-gray-300 text-gray-500 bg-white"
+                >
+                  {lang === 'th' ? 'ล้าง' : 'CLEAR'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setFilterOpen(false)}
+                className="flex-1 btn-primary"
+              >
+                {lang === 'th' ? 'เสร็จ' : 'DONE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
