@@ -272,6 +272,17 @@
     filter: brightness(0.92);
   }
 
+  /* Hide the persistent focus rectangle after click/touch — browsers leave
+     focus on the last-tapped button which paints a hard outline that looks
+     out of place in a mobile/PWA UI. Keep :focus-visible (keyboard tab) so
+     accessibility is preserved. Inputs are left alone — they keep their
+     focus styling so users can see which field is active. */
+  button:focus:not(:focus-visible),
+  a:focus:not(:focus-visible),
+  [role="button"]:focus:not(:focus-visible) {
+    outline: none;
+  }
+
   /* Form flash when edit panel opens */
   .form-flash {
     animation: form-flash 600ms ease-out;
