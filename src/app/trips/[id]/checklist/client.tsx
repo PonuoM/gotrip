@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { t as translate, type TKey } from '@/lib/i18n'
 import { AvatarBadge } from '@/components/AvatarBadge'
+import { confirmDialog } from '@/lib/dialog'
 
 interface Tick {
   member_id: string
@@ -55,6 +56,7 @@ export function ChecklistClient({ tripId, canEdit, myMemberId, checklists, membe
   const [newListTitle, setNewListTitle] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const [hideMine, setHideMine] = useState(false)
 
   const memberMap = Object.fromEntries(members.map(m => [m.id, m.user_profiles?.display_name || '?']))
 
@@ -76,7 +78,13 @@ export function ChecklistClient({ tripId, canEdit, myMemberId, checklists, membe
   }
 
   const deleteList = async (id: string) => {
-    if (!confirm(t('cl.delete_list'))) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ลบเช็คลิสต์' : 'Delete checklist',
+      message: t('cl.delete_list'),
+      confirmLabel: lang === 'th' ? 'ลบ' : 'DELETE',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.from('checklists').delete().eq('id', id)
     router.refresh()
   }
@@ -115,20 +123,40 @@ export function ChecklistClient({ tripId, canEdit, myMemberId, checklists, membe
           {canEdit && <div className="mt-1 text-xs">{t('cl.create_above')}</div>}
         </div>
       ) : (
-        <div className="space-y-6">
-          {checklists.map(list => (
-            <ChecklistCard
-              key={list.id}
-              list={list}
-              members={members}
-              memberMap={memberMap}
-              myMemberId={myMemberId}
-              canEdit={canEdit}
-              lang={lang}
-              onDelete={() => deleteList(list.id)}
-            />
-          ))}
-        </div>
+        <>
+          {/* Hide-my-done filter */}
+          <div className="flex justify-end mb-3">
+            <button
+              type="button"
+              onClick={() => setHideMine(v => !v)}
+              className={`text-[10px] font-black tracking-wider px-3 py-1.5 rounded-pill border-2 transition ${
+                hideMine
+                  ? 'bg-brand-black text-white border-brand-black'
+                  : 'bg-white text-gray-500 border-gray-200'
+              }`}
+            >
+              {hideMine
+                ? (lang === 'th' ? '👁 แสดงทั้งหมด' : '👁 SHOW ALL')
+                : (lang === 'th' ? '🙈 ซ่อนที่ฉันทำแล้ว' : '🙈 HIDE MY DONE')}
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {checklists.map(list => (
+              <ChecklistCard
+                key={list.id}
+                list={list}
+                members={members}
+                memberMap={memberMap}
+                myMemberId={myMemberId}
+                canEdit={canEdit}
+                hideMine={hideMine}
+                lang={lang}
+                onDelete={() => deleteList(list.id)}
+              />
+            ))}
+          </div>
+        </>
       )}
     </>
   )
@@ -136,12 +164,13 @@ export function ChecklistClient({ tripId, canEdit, myMemberId, checklists, membe
 
 // ===== Checklist card =====
 
-function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, lang, onDelete }: {
+function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, hideMine, lang, onDelete }: {
   list: Checklist
   members: Member[]
   memberMap: Record<string, string>
   myMemberId: string
   canEdit: boolean
+  hideMine: boolean
   lang: 'th' | 'en'
   onDelete: () => void
 }) {
@@ -152,6 +181,7 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, lang, on
   const [newItem, setNewItem] = useState('')
   const [assignTo, setAssignTo] = useState<string>('')
   const [adding, setAdding] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   // "Fully done" =
   //   - specific item: is_done (single owner)
@@ -162,11 +192,25 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, lang, on
     return totalMembers > 0 && item.checklist_item_ticks.length >= totalMembers
   }
 
+  // "Done by me" — used for the hide-my-done filter & "my remaining" hint
+  const isDoneByMe = (item: Item): boolean => {
+    if (item.member_id) return item.member_id === myMemberId && item.is_done
+    return item.checklist_item_ticks.some(tk => tk.member_id === myMemberId)
+  }
+
+  // What's left for ME to act on (specific items assigned to me, or shared items I haven't ticked)
+  const myRemaining = list.checklist_items.filter(item => {
+    if (item.member_id) return item.member_id === myMemberId && !item.is_done
+    return !item.checklist_item_ticks.some(tk => tk.member_id === myMemberId)
+  }).length
+
   const sorted = [...list.checklist_items].sort((a, b) => {
     const ad = isItemFullyDone(a), bd = isItemFullyDone(b)
     if (ad !== bd) return ad ? 1 : -1
     return a.sort_order - b.sort_order
   })
+
+  const visibleItems = hideMine ? sorted.filter(item => !isDoneByMe(item)) : sorted
 
   const doneCount = list.checklist_items.filter(isItemFullyDone).length
   const total = list.checklist_items.length
@@ -225,33 +269,54 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, lang, on
 
   return (
     <section className="card-base p-4">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1 min-w-0">
-          <div className="font-black text-base">{list.title.toUpperCase()}</div>
-          <div className="text-[10px] text-gray-500 font-bold tracking-wider">
-            {doneCount}/{total} {t('cl.done')} · {pct}%
+      <div className="flex justify-between items-start gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          className="flex-1 min-w-0 text-left -m-1 p-1 rounded-lg"
+          aria-expanded={expanded}
+        >
+          <div className="flex items-center gap-2">
+            <div className="font-black text-base">{list.title.toUpperCase()}</div>
+            <span className={`text-xs text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}>▾</span>
           </div>
-        </div>
+          <div className="text-[10px] text-gray-500 font-bold tracking-wider mt-0.5">
+            {doneCount}/{total} {t('cl.done')} · {pct}%
+            {myRemaining > 0 && (
+              <span className="ml-1.5 text-brand-red">
+                · {lang === 'th' ? `เหลือของฉัน ${myRemaining}` : `${myRemaining} for me`}
+              </span>
+            )}
+          </div>
+        </button>
         {canEdit && (
           <button
             onClick={onDelete}
-            className="text-[10px] font-black tracking-wider text-gray-400 hover:text-brand-red px-2 py-1"
+            className="text-[10px] font-black tracking-wider text-gray-400 hover:text-brand-red px-2 py-1 shrink-0"
+            aria-label="delete checklist"
           >
             ✗
           </button>
         )}
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar — always visible so collapsed cards still show status */}
       {total > 0 && (
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
+        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-3">
           <div className="h-full bg-brand-red transition-all" style={{ width: `${pct}%` }} />
         </div>
       )}
 
+      {!expanded ? null : (
+      <>
       {/* Items */}
-      <div className="space-y-2">
-        {sorted.map(item => {
+      <div className="space-y-2 mt-3">
+        {visibleItems.length === 0 && total > 0 && hideMine && (
+          <div className="text-center py-4 text-xs font-bold text-gray-400">
+            {lang === 'th' ? '🎉 ทำของฉันครบแล้ว' : '🎉 All mine done'}
+          </div>
+        )}
+        {visibleItems.map(item => {
           const fullyDone = isItemFullyDone(item)
           const isShared = !item.member_id
           const myTicked = isShared && item.checklist_item_ticks.some(tk => tk.member_id === myMemberId)
@@ -377,6 +442,8 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, lang, on
             </button>
           </div>
         </form>
+      )}
+      </>
       )}
     </section>
   )

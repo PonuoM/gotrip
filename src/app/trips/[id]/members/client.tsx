@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import { t as translate, type TKey } from '@/lib/i18n'
 import { AvatarBadge } from '@/components/AvatarBadge'
+import { confirmDialog } from '@/lib/dialog'
 
 interface Props {
   tripId: string
@@ -36,7 +37,13 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
   }
 
   const reject = async (memberId: string) => {
-    if (!confirm(t('mem.reject'))) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ปฏิเสธคำขอ' : 'Reject request',
+      message: t('mem.reject'),
+      confirmLabel: lang === 'th' ? 'ปฏิเสธ' : 'REJECT',
+      danger: true,
+    })
+    if (!ok) return
     setBusy(memberId)
     setError('')
     const { error } = await supabase.from('trip_members').delete().eq('id', memberId)
@@ -55,10 +62,15 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
   }
 
   const removeMember = async (memberId: string, name: string) => {
-    const msg = lang === 'th'
-      ? `ลบ ${name} ออกจากทริปนี้? เขาจะสูญเสียสิทธิ์เข้าถึง`
-      : `Remove ${name} from this trip? They will lose access.`
-    if (!confirm(msg)) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ลบสมาชิก' : 'Remove member',
+      message: lang === 'th'
+        ? `ลบ ${name} ออกจากทริปนี้? เขาจะสูญเสียสิทธิ์เข้าถึง`
+        : `Remove ${name} from this trip? They will lose access.`,
+      confirmLabel: lang === 'th' ? 'ลบออก' : 'REMOVE',
+      danger: true,
+    })
+    if (!ok) return
     setBusy(memberId)
     setError('')
     const { error } = await supabase.from('trip_members').delete().eq('id', memberId)
@@ -231,7 +243,13 @@ function InviteSection({ tripId, invites, lang }: { tripId: string; invites: any
   }
 
   const handleRevoke = async (id: string) => {
-    if (!confirm(t('mem.revoke'))) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ยกเลิกลิงก์' : 'Revoke invite',
+      message: t('mem.revoke'),
+      confirmLabel: lang === 'th' ? 'ยกเลิก' : 'REVOKE',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.from('trip_invites').delete().eq('id', id)
     router.refresh()
   }

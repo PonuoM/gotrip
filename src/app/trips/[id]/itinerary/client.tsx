@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { LocationSearch } from '@/components/LocationSearch'
 import { parseCoords, MAP_URL_RE } from '@/lib/coords'
+import { confirmDialog } from '@/lib/dialog'
 
 interface Activity {
   id: string
@@ -168,7 +169,13 @@ export function ItineraryClient(props: Props) {
   }
 
   const remove = async (id: string) => {
-    if (!confirm('Delete this activity?')) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ลบกิจกรรม' : 'Delete activity',
+      message: lang === 'th' ? 'แน่ใจไหมว่าจะลบกิจกรรมนี้?' : 'Delete this activity?',
+      confirmLabel: lang === 'th' ? 'ลบ' : 'DELETE',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.from('activities').delete().eq('id', id)
     router.refresh()
   }

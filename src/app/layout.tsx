@@ -4,6 +4,7 @@ import './globals.css'
 import { getLang } from '@/lib/i18n.server'
 import { LangProvider } from '@/components/LangProvider'
 import { RouteProgress } from '@/components/RouteProgress'
+import { DialogHost } from '@/components/DialogHost'
 
 export const metadata: Metadata = {
   title: 'GoTrip — Plan trips with your crew',
@@ -44,6 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <RouteProgress />
           </Suspense>
           {children}
+          <DialogHost />
         </LangProvider>
       </body>
     </html>

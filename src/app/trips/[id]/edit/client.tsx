@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { useT } from '@/components/LangProvider'
+import { useT, useLang } from '@/components/LangProvider'
+import { confirmDialog } from '@/lib/dialog'
 
 const CURRENCIES = ['THB', 'JPY', 'USD', 'EUR', 'KRW', 'TWD']
 const STATUSES = [
@@ -29,6 +30,7 @@ export function EditTripClient({ trip }: { trip: Trip }) {
   const router = useRouter()
   const supabase = createClient()
   const t = useT()
+  const lang = useLang()
 
   const [form, setForm] = useState({
     name: trip.name,
@@ -80,17 +82,29 @@ export function EditTripClient({ trip }: { trip: Trip }) {
   }
 
   const archive = async () => {
-    if (!confirm(t('edit.confirm_archive'))) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'เก็บเข้าคลัง' : 'Archive trip',
+      message: t('edit.confirm_archive'),
+      confirmLabel: lang === 'th' ? 'เก็บ' : 'ARCHIVE',
+    })
+    if (!ok) return
     setSaving(true)
     await supabase.from('trips').update({ status: 'archived' }).eq('id', trip.id)
     router.push(`/trips/${trip.id}`)
   }
 
   const remove = async () => {
-    const confirmText = prompt(
-      `This will permanently delete "${trip.name}" and ALL its data — activities, expenses, checklists, files. This cannot be undone.\n\nType "DELETE" to confirm:`
-    )
-    if (confirmText !== 'DELETE') return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ลบทริปถาวร' : 'Delete trip forever',
+      message: lang === 'th'
+        ? `จะลบ "${trip.name}" และข้อมูลทั้งหมด — กิจกรรม, ค่าใช้จ่าย, เช็คลิสต์, ไฟล์ ทั้งหมด ย้อนกลับไม่ได้\n\nพิมพ์ "DELETE" เพื่อยืนยัน`
+        : `This will permanently delete "${trip.name}" and ALL its data — activities, expenses, checklists, files. This cannot be undone.\n\nType "DELETE" to confirm.`,
+      confirmLabel: lang === 'th' ? 'ลบถาวร' : 'DELETE FOREVER',
+      danger: true,
+      requireText: 'DELETE',
+      requireTextHint: lang === 'th' ? 'พิมพ์ DELETE' : 'Type DELETE',
+    })
+    if (!ok) return
 
     setDeleting(true)
     setError('')

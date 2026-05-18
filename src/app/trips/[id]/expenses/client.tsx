@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils'
 import { t as translate, type TKey } from '@/lib/i18n'
 import { AvatarBadge } from '@/components/AvatarBadge'
 import { MyBudgetBar } from '@/components/MyBudgetBar'
+import { confirmDialog, alertDialog } from '@/lib/dialog'
 
 interface Split {
   id: string
@@ -272,7 +273,13 @@ export function ExpensesClient(props: Props) {
   }
 
   const remove = async (id: string) => {
-    if (!confirm(t('exp.delete_confirm'))) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ลบรายการ' : 'Delete expense',
+      message: t('exp.delete_confirm'),
+      confirmLabel: lang === 'th' ? 'ลบ' : 'DELETE',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.from('expenses').delete().eq('id', id)
     router.refresh()
   }
@@ -504,7 +511,7 @@ function ExpenseCard({
       p_split_id: splitId,
       p_member_id: memberId,
     })
-    if (error) alert(error.message)
+    if (error) await alertDialog({ title: lang === 'th' ? 'ผิดพลาด' : 'Error', message: error.message })
     setClaimFor(null)
     router.refresh()
     setBusy(null)

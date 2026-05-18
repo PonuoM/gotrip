@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { t as translate, type TKey } from '@/lib/i18n'
+import { confirmDialog, alertDialog } from '@/lib/dialog'
 
 interface Doc {
   id: string
@@ -159,15 +160,23 @@ export function DocsClient({ tripId, canEdit, documents, lang }: Props) {
       .from('trip-documents')
       .createSignedUrl(doc.file_url, 60)
     if (error || !data) {
-      alert(error?.message || 'Could not generate link')
+      await alertDialog({
+        title: lang === 'th' ? 'ผิดพลาด' : 'Error',
+        message: error?.message || (lang === 'th' ? 'สร้างลิงก์ไม่ได้' : 'Could not generate link'),
+      })
       return
     }
     window.open(data.signedUrl, '_blank')
   }
 
   const removeDoc = async (doc: Doc) => {
-    const confirmMsg = lang === 'th' ? `ลบ "${doc.filename}"?` : `Delete "${doc.filename}"?`
-    if (!confirm(confirmMsg)) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ลบไฟล์' : 'Delete file',
+      message: lang === 'th' ? `ลบ "${doc.filename}"?` : `Delete "${doc.filename}"?`,
+      confirmLabel: lang === 'th' ? 'ลบ' : 'DELETE',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.storage.from('trip-documents').remove([doc.file_url])
     await supabase.from('documents').delete().eq('id', doc.id)
     router.refresh()
@@ -175,10 +184,15 @@ export function DocsClient({ tripId, canEdit, documents, lang }: Props) {
 
   const removeGroup = async (docs: Doc[]) => {
     const groupName = docs[0]?.display_name || docs[0]?.filename || ''
-    const confirmMsg = lang === 'th'
-      ? `ลบทั้งกลุ่ม "${groupName}" (${docs.length} ไฟล์)?`
-      : `Delete entire group "${groupName}" (${docs.length} files)?`
-    if (!confirm(confirmMsg)) return
+    const ok = await confirmDialog({
+      title: lang === 'th' ? 'ลบทั้งกลุ่ม' : 'Delete group',
+      message: lang === 'th'
+        ? `ลบทั้งกลุ่ม "${groupName}" (${docs.length} ไฟล์)?`
+        : `Delete entire group "${groupName}" (${docs.length} files)?`,
+      confirmLabel: lang === 'th' ? 'ลบทั้งหมด' : 'DELETE ALL',
+      danger: true,
+    })
+    if (!ok) return
     await supabase.storage.from('trip-documents').remove(docs.map(d => d.file_url))
     await supabase.from('documents').delete().in('id', docs.map(d => d.id))
     router.refresh()
