@@ -3,8 +3,19 @@
   "short_name": "GoTrip",
   "description": "Plan trips with your crew. Split costs. Make memories.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#FFFFFF",
-  "theme_color": "#E63946"
+  "theme_color": "#E63946",
+  "categories": ["travel", "lifestyle", "productivity"],
+  "lang": "th",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

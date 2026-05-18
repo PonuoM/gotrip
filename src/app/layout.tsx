@@ -5,11 +5,23 @@ import { getLang } from '@/lib/i18n.server'
 import { LangProvider } from '@/components/LangProvider'
 import { RouteProgress } from '@/components/RouteProgress'
 import { DialogHost } from '@/components/DialogHost'
+import { PwaRegister } from '@/components/PwaRegister'
 
 export const metadata: Metadata = {
   title: 'GoTrip — Plan trips with your crew',
   description: 'Trip planning app for groups. Split costs. Make memories.',
   manifest: '/manifest.json',
+  applicationName: 'GoTrip',
+  appleWebApp: {
+    capable: true,
+    title: 'GoTrip',
+    statusBarStyle: 'black-translucent',
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icon.svg' }],
+  },
 }
 
 export const viewport: Viewport = {
@@ -46,6 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </Suspense>
           {children}
           <DialogHost />
+          <PwaRegister />
         </LangProvider>
       </body>
     </html>

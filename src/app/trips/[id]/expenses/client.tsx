@@ -681,8 +681,8 @@ function ExpenseCard({
       </button>
 
       {/* Expanded body */}
-      {open && (
-        <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+      <div className={`collapsible ${open ? 'open' : ''}`} aria-hidden={!open}>
+        <div className="collapsible-inner pt-3 border-t border-gray-100 space-y-1.5">
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-500 mb-1">
             {t('exp.splits')}
           </div>
@@ -782,7 +782,7 @@ function ExpenseCard({
             <div className="mt-2 text-[11px] text-gray-600 italic">"{expense.notes}"</div>
           )}
         </div>
-      )}
+      </div>
 
       {canEdit && (
         <div className="flex justify-end gap-1 mt-2 pt-2 border-t border-gray-100">

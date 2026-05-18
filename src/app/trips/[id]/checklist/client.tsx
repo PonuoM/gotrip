@@ -307,10 +307,10 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, hideMine
         </div>
       )}
 
-      {!expanded ? null : (
-      <>
+      <div className={`collapsible ${expanded ? 'open' : ''}`} aria-hidden={!expanded}>
+      <div className="collapsible-inner">
       {/* Items */}
-      <div className="space-y-2 mt-3">
+      <div className="space-y-2">
         {visibleItems.length === 0 && total > 0 && hideMine && (
           <div className="text-center py-4 text-xs font-bold text-gray-400">
             {lang === 'th' ? '🎉 ทำของฉันครบแล้ว' : '🎉 All mine done'}
@@ -443,8 +443,8 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, hideMine
           </div>
         </form>
       )}
-      </>
-      )}
+      </div>
+      </div>
     </section>
   )
 }
