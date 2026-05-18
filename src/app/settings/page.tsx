@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { BottomNav } from '@/components/BottomNav'
 import { useT } from '@/components/LangProvider'
 import { AvatarBadge, AVATAR_ANIMALS, AVATAR_LABELS, AVATAR_COLORS, DEFAULT_BG, type AvatarAnimal } from '@/components/AvatarBadge'
 
@@ -275,7 +274,6 @@ export default function SettingsPage() {
         </div>
 
       </div>
-      <BottomNav />
     </main>
   )
 }

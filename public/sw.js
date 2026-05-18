@@ -2,7 +2,7 @@
 // Strategy: network-first for navigations (so updates ship instantly), cache-first for built static assets.
 // Keep it small — Next.js already fingerprints /_next/static so we can cache aggressively without staleness.
 
-const CACHE = 'gotrip-v4'
+const CACHE = 'gotrip-v5'
 const PRECACHE = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-icon.png', '/favicon-32.png']
 
 self.addEventListener('install', (event) => {

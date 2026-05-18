@@ -6,6 +6,7 @@ import { LangProvider } from '@/components/LangProvider'
 import { RouteProgress } from '@/components/RouteProgress'
 import { DialogHost } from '@/components/DialogHost'
 import { PwaRegister } from '@/components/PwaRegister'
+import { BottomNav } from '@/components/BottomNav'
 
 export const metadata: Metadata = {
   title: 'GoTrip — Plan trips with your crew',
@@ -63,6 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <RouteProgress />
           </Suspense>
           {children}
+          <BottomNav />
           <DialogHost />
           <PwaRegister />
         </LangProvider>

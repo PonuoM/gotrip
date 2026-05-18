@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate, formatCurrency } from '@/lib/utils'
-import { BottomNav } from '@/components/BottomNav'
 import { AvatarBadge } from '@/components/AvatarBadge'
 import { MyBudgetBar } from '@/components/MyBudgetBar'
 import { TrophySvg } from '@/components/SpendingPodium'
@@ -250,7 +249,6 @@ export default async function TripDetailPage({ params }: { params: { id: string 
         )}
 
       </div>
-      <BottomNav />
     </main>
   )
 }
@@ -287,7 +285,6 @@ function WaitingScreen({ trip, ownerName }: { trip: any; ownerName?: string }) {
           ← BACK TO HOME
         </Link>
       </div>
-      <BottomNav />
     </main>
   )
 }

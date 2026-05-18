@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate } from '@/lib/utils'
-import { BottomNav } from '@/components/BottomNav'
 import { AvatarBadge } from '@/components/AvatarBadge'
 import { t } from '@/lib/i18n'
 import { getLang } from '@/lib/i18n.server'
@@ -150,7 +149,6 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <BottomNav />
     </main>
   )
 }

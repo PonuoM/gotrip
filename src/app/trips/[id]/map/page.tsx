@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { BottomNav } from '@/components/BottomNav'
 import { getLang } from '@/lib/i18n.server'
 import { t } from '@/lib/i18n'
 
@@ -165,7 +164,6 @@ export default async function MapPage({ params }: { params: { id: string } }) {
           </div>
         )}
       </div>
-      <BottomNav />
     </main>
   )
 }

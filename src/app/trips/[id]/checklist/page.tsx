@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { BottomNav } from '@/components/BottomNav'
 import { ChecklistClient } from './client'
 import { t } from '@/lib/i18n'
 import { getLang } from '@/lib/i18n.server'
@@ -96,7 +95,6 @@ export default async function ChecklistPage({ params }: { params: { id: string }
           lang={lang}
         />
       </div>
-      <BottomNav />
     </main>
   )
 }

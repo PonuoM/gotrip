@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { BottomNav } from '@/components/BottomNav'
 import { SpendingPodium } from '@/components/SpendingPodium'
 import { formatCurrency } from '@/lib/utils'
 import { t } from '@/lib/i18n'
@@ -125,7 +124,6 @@ export default async function TripSpendingPage({ params }: { params: { id: strin
           />
         )}
       </div>
-      <BottomNav />
     </main>
   )
 }
