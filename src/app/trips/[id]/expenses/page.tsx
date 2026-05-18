@@ -23,7 +23,7 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
 
   const { data: myMembership } = await supabase
     .from('trip_members')
-    .select('id, status, role')
+    .select('id, status, role, budget_amount')
     .eq('trip_id', params.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -99,7 +99,7 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
         <ExpensesClient
           tripId={params.id}
           currency={trip.default_currency}
-          budget={trip.budget_amount ? Number(trip.budget_amount) : null}
+          myBudget={myMembership.budget_amount ? Number(myMembership.budget_amount) : null}
           myMemberId={myMembership.id}
           canEdit={canEdit}
           expenses={expenses || []}

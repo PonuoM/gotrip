@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { daysUntil, formatDate, formatCurrency } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
 import { AvatarBadge } from '@/components/AvatarBadge'
+import { MyBudgetBar } from '@/components/MyBudgetBar'
 import { t } from '@/lib/i18n'
 import { getLang } from '@/lib/i18n.server'
 
@@ -25,7 +26,7 @@ export default async function TripDetailPage({ params }: { params: { id: string 
   // Check viewer's own membership status — pending users get a waiting screen
   const { data: myMembership } = await supabase
     .from('trip_members')
-    .select('status')
+    .select('id, status, budget_amount')
     .eq('trip_id', params.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -59,6 +60,14 @@ export default async function TripDetailPage({ params }: { params: { id: string 
       .eq('trip_id', params.id),
   ])
 
+  // My share = sum of expense_splits where member_id = my member row
+  const { data: mySplits } = await supabase
+    .from('expense_splits')
+    .select('share_amount, expense_id, expenses!inner(trip_id)')
+    .eq('member_id', myMembership!.id)
+    .eq('expenses.trip_id', params.id)
+  const mySpent = (mySplits || []).reduce((sum, s: any) => sum + Number(s.share_amount), 0)
+
   // Hydrate display names — no direct FK from trip_members.user_id to user_profiles
   const userIds = (rawMembers || []).map((m: any) => m.user_id)
   const { data: profiles } = userIds.length > 0
@@ -82,9 +91,6 @@ export default async function TripDetailPage({ params }: { params: { id: string 
   const isOwner = trip.owner_id === user.id
   const approvedMembers = (members || []).filter((m: any) => m.status === 'approved')
   const pendingCount = (members || []).filter((m: any) => m.status === 'pending').length
-  const budgetPct = trip.budget_amount && Number(trip.budget_amount) > 0
-    ? Math.min(100, (totalSpent / Number(trip.budget_amount)) * 100)
-    : 0
 
   return (
     <main className="min-h-screen bg-brand-white pb-28">
@@ -136,27 +142,17 @@ export default async function TripDetailPage({ params }: { params: { id: string 
         <div className="grid grid-cols-3 gap-2 mt-4">
           <StatCard label={t(lang, 'trip.members')} value={String(approvedMembers.length)} />
           <StatCard label={t(lang, 'trip.plans')} value={String(activityCount || 0)} />
-          <StatCard label={t(lang, 'trip.spent')} value={formatCurrency(totalSpent, trip.default_currency)} small />
+          <StatCard label={t(lang, 'trip.spent')} value={formatCurrency(mySpent, trip.default_currency)} small />
         </div>
 
-        {/* Budget bar */}
-        {trip.budget_amount && Number(trip.budget_amount) > 0 && (
-          <div className="mt-4 card-base p-4">
-            <div className="flex justify-between text-[10px] font-black tracking-[2px] text-gray-600 mb-2">
-              <span>{t(lang, 'trip.budget')}</span>
-              <span>{budgetPct.toFixed(0)}%</span>
-            </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-brand-red" style={{ width: `${budgetPct}%` }} />
-            </div>
-            <div className="mt-2 flex justify-between text-xs font-bold">
-              <span>{formatCurrency(totalSpent, trip.default_currency)}</span>
-              <span className="text-gray-500">
-                / {formatCurrency(Number(trip.budget_amount), trip.default_currency)}
-              </span>
-            </div>
-          </div>
-        )}
+        {/* My budget (per-member) */}
+        <MyBudgetBar
+          myMemberId={myMembership!.id}
+          budget={myMembership!.budget_amount ? Number(myMembership!.budget_amount) : null}
+          spent={mySpent}
+          currency={trip.default_currency}
+          lang={lang}
+        />
 
         {/* Members */}
         <div className="mt-8">

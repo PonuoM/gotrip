@@ -73,6 +73,7 @@ export type Database = {
           current_lat: number | null
           current_lng: number | null
           current_location_at: string | null
+          budget_amount: number | null
           joined_at: string
         }
         Insert: Omit<Database['public']['Tables']['trip_members']['Row'], 'id' | 'joined_at'> & {

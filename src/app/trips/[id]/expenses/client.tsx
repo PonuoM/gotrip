@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { t as translate, type TKey } from '@/lib/i18n'
 import { AvatarBadge } from '@/components/AvatarBadge'
+import { MyBudgetBar } from '@/components/MyBudgetBar'
 
 interface Split {
   id: string
@@ -59,7 +60,7 @@ interface Debt {
 interface Props {
   tripId: string
   currency: string
-  budget: number | null
+  myBudget: number | null
   myMemberId: string
   canEdit: boolean
   expenses: Expense[]
@@ -77,7 +78,7 @@ const CURRENCIES = ['THB', 'JPY', 'USD', 'EUR', 'KRW', 'TWD']
 // ====================================================================
 
 export function ExpensesClient(props: Props) {
-  const { tripId, currency, budget, myMemberId, canEdit, expenses, members, categories, debts, lang } = props
+  const { tripId, currency, myBudget, myMemberId, canEdit, expenses, members, categories, debts, lang } = props
   const router = useRouter()
   const supabase = createClient()
   const t = (k: TKey) => translate(lang, k)
@@ -86,7 +87,16 @@ export function ExpensesClient(props: Props) {
   const memberMap   = useMemo(() => Object.fromEntries(members.map(m => [m.id, m])), [members])
 
   const totalSpent = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
-  const budgetPct = budget && budget > 0 ? Math.min(100, (totalSpent / budget) * 100) : 0
+
+  // My total share across the trip (regardless of who fronted the cash)
+  const mySpent = useMemo(() => {
+    let total = 0
+    for (const exp of expenses) {
+      const mine = exp.expense_splits.find(s => s.member_id === myMemberId)
+      if (mine) total += Number(mine.share_amount)
+    }
+    return total
+  }, [expenses, myMemberId])
 
   const myBalance = useMemo(() => {
     let paid = 0, owed = 0
@@ -238,23 +248,25 @@ export function ExpensesClient(props: Props) {
         </div>
       )}
 
-      {/* Summary */}
+      {/* Summary — group total */}
       <div className="card-hero">
         <div className="text-[10px] font-black tracking-[2px] opacity-80">{t('exp.trip_total')}</div>
         <div className="mt-1 text-[36px] font-black leading-none tracking-tighter">
           {formatCurrency(totalSpent, currency)}
         </div>
-        {budget && (
-          <>
-            <div className="text-xs font-medium mt-1 opacity-80">
-              {t('pay.budget_of')} {formatCurrency(budget, currency)} ({budgetPct.toFixed(0)}%)
-            </div>
-            <div className="mt-3 h-2 bg-black/30 rounded-full overflow-hidden">
-              <div className="h-full bg-white" style={{ width: `${budgetPct}%` }} />
-            </div>
-          </>
-        )}
+        <div className="text-xs font-medium mt-1 opacity-80">
+          {lang === 'th' ? 'รวมของทุกคนในทริป' : 'Across everyone in the trip'}
+        </div>
       </div>
+
+      {/* My personal budget */}
+      <MyBudgetBar
+        myMemberId={myMemberId}
+        budget={myBudget}
+        spent={mySpent}
+        currency={currency}
+        lang={lang}
+      />
 
       {/* My balance */}
       <div className={`mt-3 card-base p-3 flex justify-between items-center ${myBalance < 0 ? 'border-brand-red' : 'border-green-600'}`}>
