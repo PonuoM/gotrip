@@ -325,7 +325,7 @@ function InviteSection({ tripId, invites, lang }: { tripId: string; invites: any
             <div className="text-[9px] font-black tracking-[1.5px] opacity-70 mb-1">
               {t('mem.link_created')}
             </div>
-            <div className="font-mono text-xs break-all mb-2">{inviteUrl(createdCode)}</div>
+            <div className="font-mono text-xs break-all mb-2 selectable">{inviteUrl(createdCode)}</div>
             <button
               type="button"
               onClick={() => copy(createdCode)}
@@ -351,7 +351,7 @@ function InviteSection({ tripId, invites, lang }: { tripId: string; invites: any
               <div key={inv.id} className={`card-base p-3 ${dead ? 'opacity-50' : ''}`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="font-mono text-xs truncate font-bold">
+                    <div className="font-mono text-xs truncate font-bold selectable">
                       /join/{inv.code}
                     </div>
                     <div className="text-[10px] text-gray-500 font-bold mt-0.5">
