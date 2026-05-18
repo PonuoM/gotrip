@@ -330,11 +330,16 @@ export function ExpensesClient(props: Props) {
       )}
 
       {/* Top spenders leaderboard */}
-      {leaderboard.length >= 2 && (
+      {leaderboard.length >= 1 && (
         <div className="mt-5">
           <div className="text-xs font-black uppercase tracking-[2px] mb-2 flex items-center gap-1.5">
             <span>🏆</span>
             <span>{lang === 'th' ? 'เจ้าบุญทุ่ม' : 'Top spenders'}</span>
+            {leaderboard.length === 1 && (
+              <span className="text-[9px] font-bold text-gray-400 normal-case tracking-normal">
+                · {lang === 'th' ? 'ยังมีแค่คุณ' : 'just you so far'}
+              </span>
+            )}
           </div>
           <div className="space-y-1.5">
             {leaderboard.slice(0, 3).map((row, idx) => {
