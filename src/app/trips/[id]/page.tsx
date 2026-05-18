@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate, formatCurrency } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
+import { AvatarBadge } from '@/components/AvatarBadge'
 import { t } from '@/lib/i18n'
 import { getLang } from '@/lib/i18n.server'
 
@@ -63,7 +64,7 @@ export default async function TripDetailPage({ params }: { params: { id: string 
   const { data: profiles } = userIds.length > 0
     ? await supabase
         .from('user_profiles')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name, avatar_url, avatar_animal, avatar_bg_color')
         .in('id', userIds)
     : { data: [] as any[] }
 
@@ -176,15 +177,18 @@ export default async function TripDetailPage({ params }: { params: { id: string 
           <div className="flex flex-wrap gap-3 items-start">
             {approvedMembers.map((m: any) => {
               const name = m.user_profiles?.display_name || '?'
-              const initial = name[0]?.toUpperCase() || '?'
               const isOwner = m.role === 'owner'
               return (
                 <div key={m.id} className="flex flex-col items-center gap-1">
                   <div className="relative">
                     {isOwner && <CrownBadge />}
-                    <div className="w-10 h-10 rounded-full bg-brand-red text-white flex items-center justify-center font-black text-sm border-2 border-brand-black">
-                      {initial}
-                    </div>
+                    <AvatarBadge
+                      animal={m.user_profiles?.avatar_animal}
+                      bgColor={m.user_profiles?.avatar_bg_color}
+                      fallbackLetter={name[0]}
+                      size="md"
+                      ringClass="border-2 border-brand-black"
+                    />
                   </div>
                   <div className="text-[10px] font-black tracking-wider text-center max-w-[60px] truncate">
                     {name.toUpperCase()}

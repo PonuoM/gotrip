@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import { t as translate, type TKey } from '@/lib/i18n'
+import { AvatarBadge } from '@/components/AvatarBadge'
 
 interface Props {
   tripId: string
@@ -88,9 +89,12 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
               <div key={m.id} className="card-base p-3 border-brand-red">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-black">
-                      {m.user_profiles?.display_name?.[0]?.toUpperCase() || '?'}
-                    </div>
+                    <AvatarBadge
+                      animal={m.user_profiles?.avatar_animal}
+                      bgColor={m.user_profiles?.avatar_bg_color || '#9CA3AF'}
+                      fallbackLetter={m.user_profiles?.display_name?.[0]}
+                      size="md"
+                    />
                     <div className="min-w-0">
                       <div className="font-black text-sm truncate">
                         {m.user_profiles?.display_name || 'Unknown'}
@@ -137,9 +141,12 @@ export function MembersClient({ tripId, isOwner, currentUserId, approved, pendin
             return (
               <div key={m.id} className="card-base p-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-full bg-brand-red text-white flex items-center justify-center font-black">
-                    {name[0]?.toUpperCase() || '?'}
-                  </div>
+                  <AvatarBadge
+                    animal={m.user_profiles?.avatar_animal}
+                    bgColor={m.user_profiles?.avatar_bg_color}
+                    fallbackLetter={name[0]}
+                    size="md"
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="font-black text-sm truncate">
                       {name}{isSelf && ` ${t('mem.you')}`}

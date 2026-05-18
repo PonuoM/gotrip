@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { t as translate, type TKey } from '@/lib/i18n'
+import { AvatarBadge } from '@/components/AvatarBadge'
 
 interface Tick {
   member_id: string
@@ -30,7 +31,11 @@ interface Checklist {
 
 interface Member {
   id: string
-  user_profiles: { display_name: string } | null
+  user_profiles: {
+    display_name: string
+    avatar_animal?: string | null
+    avatar_bg_color?: string | null
+  } | null
 }
 
 interface Props {
@@ -289,11 +294,10 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, lang, on
                 )}
                 {/* Avatar pile for shared items */}
                 {isShared && (
-                  <div className="flex -space-x-1.5 mt-1">
+                  <div className="flex -space-x-2 mt-1.5 items-center">
                     {members.map(m => {
                       const ticked = item.checklist_item_ticks.some(tk => tk.member_id === m.id)
                       const name = m.user_profiles?.display_name || '?'
-                      const initial = name[0]?.toUpperCase() || '?'
                       const isMine = m.id === myMemberId
                       return (
                         <button
@@ -302,13 +306,21 @@ function ChecklistCard({ list, members, memberMap, myMemberId, canEdit, lang, on
                           onClick={() => isMine && toggleMyTick(item)}
                           disabled={!isMine}
                           title={name + (ticked ? ' ✓' : '')}
-                          className={`relative w-6 h-6 rounded-full border-2 border-white text-[10px] font-black flex items-center justify-center transition ${
-                            ticked
-                              ? 'bg-green-600 text-white'
-                              : 'bg-gray-200 text-gray-500'
-                          } ${isMine ? 'ring-2 ring-brand-red' : ''}`}
+                          className={`relative transition ${isMine ? 'ring-2 ring-brand-red rounded-full' : ''}`}
                         >
-                          {ticked ? '✓' : initial}
+                          <AvatarBadge
+                            animal={m.user_profiles?.avatar_animal}
+                            bgColor={m.user_profiles?.avatar_bg_color}
+                            fallbackLetter={name[0]}
+                            size="sm"
+                            ringClass="border-2 border-white"
+                            className={ticked ? 'opacity-40' : ''}
+                          />
+                          {ticked && (
+                            <span className="absolute inset-0 flex items-center justify-center bg-green-600/85 text-white text-[12px] font-black rounded-full border-2 border-white">
+                              ✓
+                            </span>
+                          )}
                         </button>
                       )
                     })}

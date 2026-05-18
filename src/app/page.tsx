@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { daysUntil, formatDate } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
+import { AvatarBadge } from '@/components/AvatarBadge'
 import { t } from '@/lib/i18n'
 import { getLang } from '@/lib/i18n.server'
 
@@ -20,7 +21,7 @@ export default async function HomePage() {
   // Get user profile
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('display_name, avatar_url')
+    .select('display_name, avatar_url, avatar_animal, avatar_bg_color')
     .eq('id', user.id)
     .single()
 
@@ -69,9 +70,12 @@ export default async function HomePage() {
                 OUT →
               </button>
             </form>
-            <div className="w-10 h-10 rounded-full bg-brand-red text-white flex items-center justify-center font-black">
-              {profile?.display_name?.[0] || 'U'}
-            </div>
+            <AvatarBadge
+              animal={profile?.avatar_animal}
+              bgColor={profile?.avatar_bg_color}
+              fallbackLetter={profile?.display_name?.[0]}
+              size="md"
+            />
           </div>
         </div>
 

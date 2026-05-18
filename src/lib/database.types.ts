@@ -13,6 +13,8 @@ export type Database = {
           id: string
           display_name: string
           avatar_url: string | null
+          avatar_animal: string | null
+          avatar_bg_color: string | null
           phone: string | null
           date_of_birth: string | null
           preferred_lang: string
@@ -24,6 +26,8 @@ export type Database = {
           id: string
           display_name: string
           avatar_url?: string | null
+          avatar_animal?: string | null
+          avatar_bg_color?: string | null
           phone?: string | null
           date_of_birth?: string | null
           preferred_lang?: string

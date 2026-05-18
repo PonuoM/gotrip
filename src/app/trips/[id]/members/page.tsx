@@ -42,7 +42,7 @@ export default async function MembersPage({ params }: { params: { id: string } }
   const { data: profiles } = userIds.length > 0
     ? await supabase
         .from('user_profiles')
-        .select('id, display_name, avatar_url')
+        .select('id, display_name, avatar_url, avatar_animal, avatar_bg_color')
         .in('id', userIds)
     : { data: [] as any[] }
 

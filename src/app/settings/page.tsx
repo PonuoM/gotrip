@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { BottomNav } from '@/components/BottomNav'
 import { useT } from '@/components/LangProvider'
+import { AvatarBadge, AVATAR_ANIMALS, AVATAR_LABELS, AVATAR_COLORS, DEFAULT_BG, type AvatarAnimal } from '@/components/AvatarBadge'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -15,6 +16,8 @@ export default function SettingsPage() {
   const [name, setName] = useState('')
   const [originalName, setOriginalName] = useState('')
   const [lang, setLang] = useState<'th' | 'en'>('th')
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [bgColor, setBgColor] = useState<string>(DEFAULT_BG)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -30,7 +33,7 @@ export default function SettingsPage() {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('display_name, preferred_lang')
+        .select('display_name, preferred_lang, avatar_animal, avatar_bg_color')
         .eq('id', user.id)
         .single()
 
@@ -38,10 +41,28 @@ export default function SettingsPage() {
       setName(current)
       setOriginalName(current)
       setLang((profile?.preferred_lang === 'en' ? 'en' : 'th'))
+      setAvatar(profile?.avatar_animal || null)
+      setBgColor(profile?.avatar_bg_color || DEFAULT_BG)
       setLoading(false)
     }
     load()
   }, [supabase, router])
+
+  const pickAvatar = async (animal: AvatarAnimal) => {
+    setAvatar(animal)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('user_profiles').update({ avatar_animal: animal }).eq('id', user.id)
+    router.refresh()
+  }
+
+  const pickColor = async (color: string) => {
+    setBgColor(color)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('user_profiles').update({ avatar_bg_color: color }).eq('id', user.id)
+    router.refresh()
+  }
 
   const changeLang = async (next: 'th' | 'en') => {
     if (next === lang) return
@@ -107,12 +128,60 @@ export default function SettingsPage() {
 
         {/* Profile card */}
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-full bg-brand-red text-white flex items-center justify-center font-black text-2xl">
-            {name[0]?.toUpperCase() || 'U'}
-          </div>
+          <AvatarBadge animal={avatar} bgColor={bgColor} fallbackLetter={name[0]} size="lg" />
           <div className="flex-1">
             <div className="font-black text-lg leading-tight">{name.toUpperCase()}</div>
             <div className="text-xs text-gray-500 font-medium truncate">{email}</div>
+          </div>
+        </div>
+
+        {/* Avatar picker */}
+        <div className="card-base p-4 mb-6 space-y-3">
+          <div className="text-[10px] font-black tracking-[2px] text-gray-600">
+            {lang === 'th' ? 'อวตาร' : 'AVATAR'}
+          </div>
+
+          {/* Animal row */}
+          <div>
+            <div className="text-[9px] font-bold tracking-wider text-gray-500 mb-1.5">
+              {lang === 'th' ? 'สัตว์' : 'ANIMAL'}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {AVATAR_ANIMALS.map(a => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => pickAvatar(a)}
+                  className={`p-1 rounded-full border-2 transition ${
+                    avatar === a ? 'border-brand-black scale-110' : 'border-transparent'
+                  }`}
+                  title={AVATAR_LABELS[a][lang]}
+                >
+                  <AvatarBadge animal={a} bgColor={bgColor} size="md" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Color row */}
+          <div>
+            <div className="text-[9px] font-bold tracking-wider text-gray-500 mb-1.5">
+              {lang === 'th' ? 'สีพื้นหลัง' : 'COLOR'}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {AVATAR_COLORS.map(c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => pickColor(c)}
+                  className={`w-8 h-8 rounded-full border-2 transition ${
+                    bgColor === c ? 'border-brand-black scale-110' : 'border-white'
+                  }`}
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
+            </div>
           </div>
         </div>
 

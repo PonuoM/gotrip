@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import { t as translate, type TKey } from '@/lib/i18n'
+import { AvatarBadge } from '@/components/AvatarBadge'
 
 interface Split {
   id: string
@@ -32,7 +33,11 @@ interface Member {
   id: string
   role: string
   user_id: string
-  user_profiles: { display_name: string } | null
+  user_profiles: {
+    display_name: string
+    avatar_animal?: string | null
+    avatar_bg_color?: string | null
+  } | null
 }
 
 interface Category {
@@ -432,32 +437,31 @@ function ExpenseCard({
           </div>
 
           {/* Avatar/slot pile (always visible) */}
-          <div className="flex flex-wrap gap-1 mt-1.5">
+          <div className="flex flex-wrap gap-1 mt-1.5 items-center">
             {expense.expense_splits.map(s => {
               const mem = s.member_id ? memberMap[s.member_id] : null
               const isMe = s.member_id === myMemberId
-              const initial = mem?.user_profiles?.display_name?.[0]?.toUpperCase() || '?'
               if (!mem) {
                 return (
-                  <span key={s.id} className="text-[10px] font-bold border-2 border-dashed border-gray-300 text-gray-400 px-2 py-0.5 rounded-full">
+                  <span key={s.id} className="text-[9px] font-bold border-2 border-dashed border-gray-300 text-gray-400 px-2 py-0.5 rounded-full">
                     {lang === 'th' ? 'ว่าง' : 'Open'}
                   </span>
                 )
               }
               return (
-                <span
-                  key={s.id}
-                  title={mem.user_profiles?.display_name || ''}
-                  className={`text-[10px] font-bold rounded-full w-6 h-6 inline-flex items-center justify-center border-2 ${
-                    s.is_settled
-                      ? 'bg-green-600 text-white border-green-700'
-                      : isMe
-                        ? 'bg-brand-red text-white border-brand-black'
-                        : 'bg-white text-brand-black border-gray-300'
-                  }`}
-                >
-                  {s.is_settled ? '✓' : initial}
-                </span>
+                <div key={s.id} className="relative" title={mem.user_profiles?.display_name || ''}>
+                  <AvatarBadge
+                    animal={mem.user_profiles?.avatar_animal}
+                    bgColor={mem.user_profiles?.avatar_bg_color}
+                    fallbackLetter={mem.user_profiles?.display_name?.[0]}
+                    size="sm"
+                    ringClass={isMe ? 'ring-2 ring-brand-red' : ''}
+                    className={s.is_settled ? 'opacity-40' : ''}
+                  />
+                  {s.is_settled && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-green-600/85 text-white text-[10px] font-black rounded-full">✓</span>
+                  )}
+                </div>
               )
             })}
           </div>

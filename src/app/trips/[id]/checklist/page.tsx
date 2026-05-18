@@ -58,7 +58,7 @@ export default async function ChecklistPage({ params }: { params: { id: string }
   const { data: memberProfiles } = memberUserIds.length > 0
     ? await supabase
         .from('user_profiles')
-        .select('id, display_name')
+        .select('id, display_name, avatar_animal, avatar_bg_color')
         .in('id', memberUserIds)
     : { data: [] as any[] }
   const profilesById = Object.fromEntries(
