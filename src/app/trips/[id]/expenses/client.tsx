@@ -108,12 +108,15 @@ export function ExpensesClient(props: Props) {
     return paid - owed
   }, [expenses, myMemberId])
 
-  // Top spenders — ranked by out-of-pocket (sum of expenses.amount they paid_by)
+  // Top spenders — total each member used = sum of their splits
+  // (their share of shared expenses + their personal expenses)
   const leaderboard = useMemo(() => {
     const totals = new Map<string, number>()
     for (const exp of expenses) {
-      if (!exp.paid_by) continue
-      totals.set(exp.paid_by, (totals.get(exp.paid_by) || 0) + Number(exp.amount))
+      for (const split of exp.expense_splits) {
+        if (!split.member_id) continue
+        totals.set(split.member_id, (totals.get(split.member_id) || 0) + Number(split.share_amount))
+      }
     }
     return Array.from(totals.entries())
       .map(([memberId, total]) => ({ memberId, member: memberMap[memberId], total }))
@@ -332,14 +335,19 @@ export function ExpensesClient(props: Props) {
       {/* Top spenders leaderboard */}
       {leaderboard.length >= 1 && (
         <div className="mt-5">
-          <div className="text-xs font-black uppercase tracking-[2px] mb-2 flex items-center gap-1.5">
-            <span>🏆</span>
-            <span>{lang === 'th' ? 'เจ้าบุญทุ่ม' : 'Top spenders'}</span>
-            {leaderboard.length === 1 && (
-              <span className="text-[9px] font-bold text-gray-400 normal-case tracking-normal">
-                · {lang === 'th' ? 'ยังมีแค่คุณ' : 'just you so far'}
-              </span>
-            )}
+          <div className="mb-2">
+            <div className="text-xs font-black uppercase tracking-[2px] flex items-center gap-1.5">
+              <span>🏆</span>
+              <span>{lang === 'th' ? 'เจ้าบุญทุ่ม' : 'Top spenders'}</span>
+              {leaderboard.length === 1 && (
+                <span className="text-[9px] font-bold text-gray-400 normal-case tracking-normal">
+                  · {lang === 'th' ? 'ยังมีแค่คุณ' : 'just you so far'}
+                </span>
+              )}
+            </div>
+            <div className="text-[10px] font-bold text-gray-400 mt-0.5">
+              {lang === 'th' ? 'ยอดรวม = ส่วนแบ่งจากหาร + ส่วนตัว' : 'Total = shared split + personal'}
+            </div>
           </div>
           <div className="space-y-1.5">
             {leaderboard.slice(0, 3).map((row, idx) => {
