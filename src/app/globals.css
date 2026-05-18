@@ -133,6 +133,47 @@
     55%      { transform: translateX(28px); opacity: 0; }
   }
 
+  /* ===== Trophy podium (spending leaderboard) ===== */
+  .trophy-bob {
+    animation: trophy-bob 3s ease-in-out infinite;
+  }
+  @keyframes trophy-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-3px); }
+  }
+  .trophy-shine {
+    animation: trophy-shine 3.4s ease-in-out infinite;
+  }
+  @keyframes trophy-shine {
+    0%, 100% { transform: translateX(0);  opacity: 0; }
+    35%      { transform: translateX(40px); opacity: 1; }
+    65%      { transform: translateX(80px); opacity: 0; }
+  }
+  .trophy-sparkle {
+    animation: trophy-sparkle 1.8s ease-in-out infinite;
+    transform-origin: center;
+  }
+  @keyframes trophy-sparkle {
+    0%, 100% { opacity: 0.35; }
+    50%      { opacity: 1;    }
+  }
+  .bubble-wiggle {
+    animation: bubble-wiggle 4s ease-in-out infinite;
+    transform-origin: 0% 50%;
+  }
+  @keyframes bubble-wiggle {
+    0%, 100% { transform: rotate(0deg)   translateY(0); }
+    25%      { transform: rotate(-1.5deg) translateY(-1px); }
+    75%      { transform: rotate(1.5deg)  translateY(1px); }
+  }
+  .bar-grow {
+    animation: bar-grow 800ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  @keyframes bar-grow {
+    0%   { transform: scaleX(0); transform-origin: left; }
+    100% { transform: scaleX(1); transform-origin: left; }
+  }
+
   /* Live location marker pulse */
   .live-pulse {
     animation: live-pulse 1.8s ease-out infinite;

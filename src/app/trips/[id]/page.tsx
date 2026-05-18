@@ -5,6 +5,7 @@ import { daysUntil, formatDate, formatCurrency } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
 import { AvatarBadge } from '@/components/AvatarBadge'
 import { MyBudgetBar } from '@/components/MyBudgetBar'
+import { SpendingPodium } from '@/components/SpendingPodium'
 import { t } from '@/lib/i18n'
 import { getLang } from '@/lib/i18n.server'
 
@@ -60,13 +61,19 @@ export default async function TripDetailPage({ params }: { params: { id: string 
       .eq('trip_id', params.id),
   ])
 
-  // My share = sum of expense_splits where member_id = my member row
-  const { data: mySplits } = await supabase
+  // Per-member spend totals = sum of expense_splits.share_amount grouped by member_id
+  // (includes both shared splits and personal expenses, since personal = 1 split assigned to self)
+  const { data: allSplits } = await supabase
     .from('expense_splits')
-    .select('share_amount, expense_id, expenses!inner(trip_id)')
-    .eq('member_id', myMembership!.id)
+    .select('member_id, share_amount, expenses!inner(trip_id)')
     .eq('expenses.trip_id', params.id)
-  const mySpent = (mySplits || []).reduce((sum, s: any) => sum + Number(s.share_amount), 0)
+    .not('member_id', 'is', null)
+  const spendByMember = new Map<string, number>()
+  for (const s of (allSplits || []) as any[]) {
+    if (!s.member_id) continue
+    spendByMember.set(s.member_id, (spendByMember.get(s.member_id) || 0) + Number(s.share_amount))
+  }
+  const mySpent = spendByMember.get(myMembership!.id) || 0
 
   // Hydrate display names — no direct FK from trip_members.user_id to user_profiles
   const userIds = (rawMembers || []).map((m: any) => m.user_id)
@@ -91,6 +98,18 @@ export default async function TripDetailPage({ params }: { params: { id: string 
   const isOwner = trip.owner_id === user.id
   const approvedMembers = (members || []).filter((m: any) => m.status === 'approved')
   const pendingCount = (members || []).filter((m: any) => m.status === 'pending').length
+
+  // Leaderboard rows — approved members only, sorted by spend descending
+  const podiumRows = approvedMembers
+    .map((m: any) => ({
+      memberId: m.id,
+      name: m.user_profiles?.display_name || '?',
+      animal: m.user_profiles?.avatar_animal,
+      bgColor: m.user_profiles?.avatar_bg_color,
+      total: spendByMember.get(m.id) || 0,
+    }))
+    .filter((r: any) => r.total > 0)
+    .sort((a: any, b: any) => b.total - a.total)
 
   return (
     <main className="min-h-screen bg-brand-white pb-28">
@@ -152,6 +171,15 @@ export default async function TripDetailPage({ params }: { params: { id: string 
           spent={mySpent}
           currency={trip.default_currency}
           lang={lang}
+        />
+
+        {/* Trophy podium — spending leaderboard with animated trophy */}
+        <SpendingPodium
+          tripId={trip.id}
+          rows={podiumRows}
+          currency={trip.default_currency}
+          lang={lang}
+          myMemberId={myMembership!.id}
         />
 
         {/* Members */}
