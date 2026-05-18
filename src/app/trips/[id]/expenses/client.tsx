@@ -108,9 +108,23 @@ export function ExpensesClient(props: Props) {
     return paid - owed
   }, [expenses, myMemberId])
 
+  // Top spenders — ranked by out-of-pocket (sum of expenses.amount they paid_by)
+  const leaderboard = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const exp of expenses) {
+      if (!exp.paid_by) continue
+      totals.set(exp.paid_by, (totals.get(exp.paid_by) || 0) + Number(exp.amount))
+    }
+    return Array.from(totals.entries())
+      .map(([memberId, total]) => ({ memberId, member: memberMap[memberId], total }))
+      .filter(x => x.member)
+      .sort((a, b) => b.total - a.total)
+  }, [expenses, memberMap])
+
   // ===== New / Edit form state =====
   const [editing, setEditing] = useState<null | {
     id?: string
+    mode: 'personal' | 'shared'
     description: string
     amount: string
     currency: string
@@ -126,8 +140,9 @@ export function ExpensesClient(props: Props) {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const startNew = () => {
+  const startNew = (mode: 'personal' | 'shared' = 'shared') => {
     setEditing({
+      mode,
       description: '',
       amount: '',
       currency,
@@ -135,8 +150,8 @@ export function ExpensesClient(props: Props) {
       paid_by: myMemberId,
       paid_at: new Date().toISOString().slice(0, 10),
       notes: '',
-      split_count: members.length || 1,
-      split_member_ids: members.map(m => m.id),  // first N slots = real members
+      split_count: mode === 'personal' ? 1 : (members.length || 1),
+      split_member_ids: mode === 'personal' ? [myMemberId] : members.map(m => m.id),
       receipt_url: null,
       receipt_file: null,
     })
@@ -144,8 +159,15 @@ export function ExpensesClient(props: Props) {
   }
 
   const startEdit = (e: Expense) => {
+    const inferredMode: 'personal' | 'shared' =
+      e.expense_splits.length === 1 &&
+      e.expense_splits[0].member_id != null &&
+      e.expense_splits[0].member_id === e.paid_by
+        ? 'personal'
+        : 'shared'
     setEditing({
       id: e.id,
+      mode: inferredMode,
       description: e.description,
       amount: String(e.amount),
       currency: e.currency,
@@ -178,6 +200,14 @@ export function ExpensesClient(props: Props) {
     setSaving(true)
     setError('')
 
+    // Personal mode → force single split assigned to me, paid by me
+    const isPersonal = editing.mode === 'personal'
+    const effectivePaidBy = isPersonal ? myMemberId : (editing.paid_by || null)
+    const effectiveSplitCount = isPersonal ? 1 : editing.split_count
+    const effectiveSplitMemberIds: (string | null)[] = isPersonal
+      ? [myMemberId]
+      : editing.split_member_ids
+
     // Upload receipt to storage if a new file is attached
     let receipt_url = editing.receipt_url
     if (editing.receipt_file) {
@@ -191,7 +221,7 @@ export function ExpensesClient(props: Props) {
       receipt_url = key
     }
 
-    const share = +(amount / editing.split_count).toFixed(2)
+    const share = +(amount / effectiveSplitCount).toFixed(2)
 
     const payload = {
       trip_id: tripId,
@@ -199,7 +229,7 @@ export function ExpensesClient(props: Props) {
       amount,
       currency: editing.currency || currency,
       category_id: editing.category_id || null,
-      paid_by: editing.paid_by || null,
+      paid_by: effectivePaidBy,
       paid_at: editing.paid_at,
       notes: editing.notes.trim() || null,
       receipt_url,
@@ -217,12 +247,12 @@ export function ExpensesClient(props: Props) {
     }
 
     // Build splits — payer's own row is auto-settled
-    const splits = editing.split_member_ids.map((mid, i) => ({
+    const splits = effectiveSplitMemberIds.map((mid, i) => ({
       expense_id: expenseId!,
       member_id: mid,
       slot_label: mid ? null : (lang === 'th' ? `ว่าง ${i + 1}` : `Open ${i + 1}`),
       share_amount: share,
-      is_settled: mid !== null && mid === editing.paid_by,
+      is_settled: mid !== null && mid === effectivePaidBy,
     }))
     const { error: splitErr } = await supabase.from('expense_splits').insert(splits)
     if (splitErr) return abort(splitErr.message)
@@ -299,10 +329,62 @@ export function ExpensesClient(props: Props) {
         </div>
       )}
 
+      {/* Top spenders leaderboard */}
+      {leaderboard.length >= 2 && (
+        <div className="mt-5">
+          <div className="text-xs font-black uppercase tracking-[2px] mb-2 flex items-center gap-1.5">
+            <span>🏆</span>
+            <span>{lang === 'th' ? 'เจ้าบุญทุ่ม' : 'Top spenders'}</span>
+          </div>
+          <div className="space-y-1.5">
+            {leaderboard.slice(0, 3).map((row, idx) => {
+              const medal = ['🥇', '🥈', '🥉'][idx]
+              const tint = [
+                'bg-yellow-50 border-yellow-300',
+                'bg-gray-50 border-gray-300',
+                'bg-orange-50 border-orange-300',
+              ][idx]
+              const barColor = ['bg-yellow-400', 'bg-gray-400', 'bg-orange-400'][idx]
+              const pct = (row.total / leaderboard[0].total) * 100
+              const isMe = row.memberId === myMemberId
+              return (
+                <div key={row.memberId} className={`rounded-xl border-2 p-2.5 flex items-center gap-2.5 ${tint}`}>
+                  <span className="text-xl shrink-0">{medal}</span>
+                  <AvatarBadge
+                    animal={row.member.user_profiles?.avatar_animal}
+                    bgColor={row.member.user_profiles?.avatar_bg_color}
+                    fallbackLetter={row.member.user_profiles?.display_name?.[0]}
+                    size="sm"
+                    ringClass={isMe ? 'ring-2 ring-brand-red' : ''}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-black truncate">
+                      {row.member.user_profiles?.display_name || '?'}
+                      {isMe && <span className="ml-1 text-[9px] text-brand-red">★</span>}
+                    </div>
+                    <div className="h-1.5 bg-white rounded-full overflow-hidden mt-1">
+                      <div className={`h-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-xs font-black shrink-0">
+                    {formatCurrency(row.total, currency)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {canEdit && !editing && (
-        <button onClick={startNew} className="btn-primary w-full mt-6">
-          {t('exp.new')}
-        </button>
+        <div className="mt-6 grid grid-cols-2 gap-2">
+          <button onClick={() => startNew('personal')} className="rounded-pill border-2 border-brand-black bg-white text-brand-black font-black tracking-wider text-xs py-3 active:scale-95 transition">
+            🍙 {lang === 'th' ? 'ส่วนตัว' : 'PERSONAL'}
+          </button>
+          <button onClick={() => startNew('shared')} className="btn-primary py-3">
+            👥 {lang === 'th' ? 'หารกัน' : 'SHARED'}
+          </button>
+        </div>
       )}
 
       {editing && (
@@ -310,6 +392,7 @@ export function ExpensesClient(props: Props) {
           editing={editing}
           categories={categories}
           members={members}
+          myMemberId={myMemberId}
           saving={saving}
           lang={lang}
           onChange={setEditing}
@@ -377,6 +460,10 @@ function ExpenseCard({
   const payer = expense.paid_by ? memberMap[expense.paid_by] : null
   const settledCount = expense.expense_splits.filter(s => s.is_settled).length
   const allSettled = settledCount === expense.expense_splits.length && expense.expense_splits.length > 0
+  const isPersonal =
+    expense.expense_splits.length === 1 &&
+    expense.expense_splits[0].member_id != null &&
+    expense.expense_splits[0].member_id === expense.paid_by
 
   // unclaimed members for the "ว่าง" picker
   const unclaimed = allMembers.filter(
@@ -438,17 +525,31 @@ function ExpenseCard({
               {formatCurrency(Number(expense.amount), expense.currency)}
             </div>
           </div>
-          <div className="text-[11px] text-gray-500 font-bold mt-0.5">
-            {t('exp.paid_by_label')} {payer?.user_profiles?.display_name || '?'}
-            {' · '}{new Date(expense.paid_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok' })}
-            {' · '}
-            {allSettled
-              ? <span className="text-green-700">{t('exp.all_settled')}</span>
-              : `${settledCount}/${expense.expense_splits.length} ${t('exp.settled')}`}
+          <div className="text-[11px] text-gray-500 font-bold mt-0.5 flex items-center flex-wrap gap-x-1">
+            {isPersonal ? (
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-black bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-pill">
+                🍙 {lang === 'th' ? 'ส่วนตัว' : 'PERSONAL'}
+              </span>
+            ) : (
+              <>
+                {t('exp.paid_by_label')} {payer?.user_profiles?.display_name || '?'}
+              </>
+            )}
+            <span>·</span>
+            <span>{new Date(expense.paid_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok' })}</span>
+            {!isPersonal && (
+              <>
+                <span>·</span>
+                {allSettled
+                  ? <span className="text-green-700">{t('exp.all_settled')}</span>
+                  : <span>{settledCount}/{expense.expense_splits.length} {t('exp.settled')}</span>}
+              </>
+            )}
             <span className="ml-1 text-gray-300">{open ? '▲' : '▼'}</span>
           </div>
 
-          {/* Avatar/slot pile (always visible) */}
+          {/* Avatar/slot pile (hidden for personal — only one person) */}
+          {!isPersonal && (
           <div className="flex flex-wrap gap-1 mt-1.5 items-center">
             {expense.expense_splits.map(s => {
               const mem = s.member_id ? memberMap[s.member_id] : null
@@ -477,6 +578,7 @@ function ExpenseCard({
               )
             })}
           </div>
+          )}
         </div>
       </button>
 
@@ -601,11 +703,12 @@ function ExpenseCard({
 // ===== Expense form ======================================================
 
 function ExpenseForm({
-  editing, categories, members, saving, lang, onChange, onCancel, onSubmit,
+  editing, categories, members, myMemberId, saving, lang, onChange, onCancel, onSubmit,
 }: {
   editing: any
   categories: Category[]
   members: Member[]
+  myMemberId: string
   saving: boolean
   lang: 'th' | 'en'
   onChange: (e: any) => void
@@ -614,6 +717,26 @@ function ExpenseForm({
 }) {
   const t = (k: TKey) => translate(lang, k)
   const upd = (patch: any) => onChange({ ...editing, ...patch })
+
+  const isPersonal = editing.mode === 'personal'
+
+  const setMode = (mode: 'personal' | 'shared') => {
+    if (mode === editing.mode) return
+    if (mode === 'personal') {
+      upd({
+        mode,
+        paid_by: myMemberId,
+        split_count: 1,
+        split_member_ids: [myMemberId],
+      })
+    } else {
+      upd({
+        mode,
+        split_count: members.length || 1,
+        split_member_ids: members.map(m => m.id),
+      })
+    }
+  }
 
   const setSplitCount = (n: number) => {
     const count = Math.max(1, Math.min(50, n))
@@ -643,6 +766,28 @@ function ExpenseForm({
           {editing.id ? t('exp.edit') : t('exp.add_new')}
         </div>
         <button type="button" onClick={onCancel} className="text-xs font-bold text-gray-500">✗</button>
+      </div>
+
+      {/* Mode toggle */}
+      <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-pill">
+        <button
+          type="button"
+          onClick={() => setMode('personal')}
+          className={`text-[11px] font-black tracking-wider py-2 rounded-pill transition ${
+            isPersonal ? 'bg-brand-black text-white' : 'text-gray-500'
+          }`}
+        >
+          🍙 {lang === 'th' ? 'ส่วนตัว' : 'PERSONAL'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('shared')}
+          className={`text-[11px] font-black tracking-wider py-2 rounded-pill transition ${
+            !isPersonal ? 'bg-brand-black text-white' : 'text-gray-500'
+          }`}
+        >
+          👥 {lang === 'th' ? 'หารกัน' : 'SHARED'}
+        </button>
       </div>
 
       <label className="block">
@@ -697,20 +842,22 @@ function ExpenseForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.paid_by')}</div>
-          <select
-            value={editing.paid_by}
-            onChange={e => upd({ paid_by: e.target.value })}
-            className="w-full border-2 border-brand-black rounded-lg py-2 px-2 font-bold text-sm"
-          >
-            <option value="">—</option>
-            {members.map(m => (
-              <option key={m.id} value={m.id}>{m.user_profiles?.display_name || '?'}</option>
-            ))}
-          </select>
-        </label>
+      <div className={`grid gap-2 ${isPersonal ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {!isPersonal && (
+          <label className="block">
+            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.paid_by')}</div>
+            <select
+              value={editing.paid_by}
+              onChange={e => upd({ paid_by: e.target.value })}
+              className="w-full border-2 border-brand-black rounded-lg py-2 px-2 font-bold text-sm"
+            >
+              <option value="">—</option>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{m.user_profiles?.display_name || '?'}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="block">
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.date')}</div>
           <input
@@ -722,45 +869,55 @@ function ExpenseForm({
         </label>
       </div>
 
-      {/* Split count + slot assignment */}
-      <div>
-        <div className="flex justify-between items-center mb-1">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600">
-            {lang === 'th' ? 'หารกี่คน' : 'SPLIT COUNT'}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button type="button" onClick={() => setSplitCount(editing.split_count - 1)}
-              className="w-7 h-7 rounded-full border-2 border-brand-black font-black">−</button>
-            <span className="font-black text-lg w-8 text-center">{editing.split_count}</span>
-            <button type="button" onClick={() => setSplitCount(editing.split_count + 1)}
-              className="w-7 h-7 rounded-full border-2 border-brand-black font-black">+</button>
+      {/* Split count + slot assignment — only in shared mode */}
+      {isPersonal ? (
+        <div className="rounded-xl border-2 border-dashed border-gray-200 p-3 text-center bg-gray-50">
+          <div className="text-[11px] font-bold text-gray-500">
+            {lang === 'th'
+              ? '🍙 ค่าใช้จ่ายส่วนตัวของคุณ · ไม่หาร'
+              : '🍙 Your personal spend · not split'}
           </div>
         </div>
-        <div className="space-y-1">
-          {editing.split_member_ids.map((mid: string | null, i: number) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-[10px] font-black tracking-wider text-gray-500 w-5">#{i + 1}</span>
-              <select
-                value={mid || ''}
-                onChange={e => setSlotMember(i, e.target.value || null)}
-                className="flex-1 border border-gray-300 rounded-lg py-1.5 px-2 font-bold text-xs"
-              >
-                <option value="">— {lang === 'th' ? 'ว่าง (ยังไม่มีคน)' : 'Open (no one yet)'} —</option>
-                {members
-                  .filter(m => m.id === mid || !editing.split_member_ids.includes(m.id))
-                  .map(m => (
-                    <option key={m.id} value={m.id}>{m.user_profiles?.display_name || '?'}</option>
-                  ))}
-              </select>
+      ) : (
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <div className="text-[9px] font-black tracking-[1.5px] text-gray-600">
+              {lang === 'th' ? 'หารกี่คน' : 'SPLIT COUNT'}
             </div>
-          ))}
-        </div>
-        {sharePreview > 0 && (
-          <div className="text-[10px] text-gray-500 font-bold mt-1.5">
-            ↳ {formatCurrency(sharePreview, editing.currency)} {t('exp.each')}
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={() => setSplitCount(editing.split_count - 1)}
+                className="w-7 h-7 rounded-full border-2 border-brand-black font-black">−</button>
+              <span className="font-black text-lg w-8 text-center">{editing.split_count}</span>
+              <button type="button" onClick={() => setSplitCount(editing.split_count + 1)}
+                className="w-7 h-7 rounded-full border-2 border-brand-black font-black">+</button>
+            </div>
           </div>
-        )}
-      </div>
+          <div className="space-y-1">
+            {editing.split_member_ids.map((mid: string | null, i: number) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-[10px] font-black tracking-wider text-gray-500 w-5">#{i + 1}</span>
+                <select
+                  value={mid || ''}
+                  onChange={e => setSlotMember(i, e.target.value || null)}
+                  className="flex-1 border border-gray-300 rounded-lg py-1.5 px-2 font-bold text-xs"
+                >
+                  <option value="">— {lang === 'th' ? 'ว่าง (ยังไม่มีคน)' : 'Open (no one yet)'} —</option>
+                  {members
+                    .filter(m => m.id === mid || !editing.split_member_ids.includes(m.id))
+                    .map(m => (
+                      <option key={m.id} value={m.id}>{m.user_profiles?.display_name || '?'}</option>
+                    ))}
+                </select>
+              </div>
+            ))}
+          </div>
+          {sharePreview > 0 && (
+            <div className="text-[10px] text-gray-500 font-bold mt-1.5">
+              ↳ {formatCurrency(sharePreview, editing.currency)} {t('exp.each')}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Receipt upload */}
       <label className="block">
