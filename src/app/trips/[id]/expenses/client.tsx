@@ -433,14 +433,14 @@ export function ExpensesClient(props: Props) {
         )}
       </div>
 
-      {/* Filter bottom sheet */}
+      {/* Filter sheet — bottom on mobile, centered on larger screens */}
       {filterOpen && (
         <div
-          className="fixed inset-0 z-[9000] flex items-end justify-center bg-black/50 backdrop-blur-[2px] dialog-fade"
+          className="fixed inset-0 z-[9000] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-[2px] dialog-fade"
           onMouseDown={() => setFilterOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-white border-2 border-brand-black rounded-t-2xl p-5 pb-7 dialog-rise"
+            className="w-full max-w-md bg-white border-2 border-brand-black rounded-t-2xl rounded-b-none sm:rounded-2xl sm:m-4 p-5 pb-7 dialog-rise"
             onMouseDown={e => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
