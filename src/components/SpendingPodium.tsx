@@ -86,9 +86,9 @@ export function SpendingPodium({ tripId, rows, currency, lang, myMemberId }: Pro
   )
 }
 
-function TrophySvg() {
+export function TrophySvg({ className = 'w-16 h-16' }: { className?: string } = {}) {
   return (
-    <svg viewBox="0 0 64 64" className="w-16 h-16 trophy-bob shrink-0" aria-label="trophy">
+    <svg viewBox="0 0 64 64" className={`${className} trophy-bob shrink-0`} aria-label="trophy">
       <defs>
         <linearGradient id="trophyGold" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"  stopColor="#FFE176" />

@@ -5,7 +5,7 @@ import { daysUntil, formatDate, formatCurrency } from '@/lib/utils'
 import { BottomNav } from '@/components/BottomNav'
 import { AvatarBadge } from '@/components/AvatarBadge'
 import { MyBudgetBar } from '@/components/MyBudgetBar'
-import { SpendingPodium } from '@/components/SpendingPodium'
+import { TrophySvg } from '@/components/SpendingPodium'
 import { t } from '@/lib/i18n'
 import { getLang } from '@/lib/i18n.server'
 
@@ -98,18 +98,7 @@ export default async function TripDetailPage({ params }: { params: { id: string 
   const isOwner = trip.owner_id === user.id
   const approvedMembers = (members || []).filter((m: any) => m.status === 'approved')
   const pendingCount = (members || []).filter((m: any) => m.status === 'pending').length
-
-  // Leaderboard rows — approved members only, sorted by spend descending
-  const podiumRows = approvedMembers
-    .map((m: any) => ({
-      memberId: m.id,
-      name: m.user_profiles?.display_name || '?',
-      animal: m.user_profiles?.avatar_animal,
-      bgColor: m.user_profiles?.avatar_bg_color,
-      total: spendByMember.get(m.id) || 0,
-    }))
-    .filter((r: any) => r.total > 0)
-    .sort((a: any, b: any) => b.total - a.total)
+  const anyoneSpent = Array.from(spendByMember.values()).some(v => v > 0)
 
   return (
     <main className="min-h-screen bg-brand-white pb-28">
@@ -131,24 +120,40 @@ export default async function TripDetailPage({ params }: { params: { id: string 
         </div>
 
         {/* Hero */}
-        <div className="mt-4 card-hero">
-          <div className="flex justify-between items-start">
-            <span className="bg-brand-black px-2.5 py-1 rounded-pill text-[10px] font-black tracking-wider">
-              {t(lang, `status.${trip.status}` as any)} ★
-            </span>
-            <span className="font-black text-lg">
-              {days >= 0
-                ? (lang === 'th' ? `อีก ${days} วัน` : `${days}d`)
-                : (lang === 'th' ? `ผ่านมา ${Math.abs(days)} วัน` : `${Math.abs(days)}d ago`)}
-            </span>
-          </div>
+        <div className="mt-4 card-hero relative">
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <span className="bg-brand-black px-2.5 py-1 rounded-pill text-[10px] font-black tracking-wider">
+                {t(lang, `status.${trip.status}` as any)} ★
+              </span>
+              <div className="mt-3 text-[36px] font-black leading-none tracking-tighter break-words">
+                {trip.name.toUpperCase()}.
+              </div>
+              {trip.destination && (
+                <div className="text-sm font-medium mt-1">{trip.destination}</div>
+              )}
+            </div>
 
-          <div className="mt-3 text-[36px] font-black leading-none tracking-tighter break-words">
-            {trip.name.toUpperCase()}.
+            <div className="shrink-0 flex flex-col items-end gap-2">
+              <span className="font-black text-lg whitespace-nowrap">
+                {days >= 0
+                  ? (lang === 'th' ? `อีก ${days} วัน` : `${days}d`)
+                  : (lang === 'th' ? `ผ่านมา ${Math.abs(days)} วัน` : `${Math.abs(days)}d ago`)}
+              </span>
+              {anyoneSpent && (
+                <Link
+                  href={`/trips/${trip.id}/spending`}
+                  className="flex flex-col items-center no-underline active:scale-95"
+                  aria-label={lang === 'th' ? 'ดูยอดใช้จ่าย' : 'View spending'}
+                >
+                  <TrophySvg className="w-14 h-14" />
+                  <span className="text-[9px] font-black tracking-wider text-white/90 mt-0.5">
+                    {lang === 'th' ? 'ยอดใช้จ่าย →' : 'SPENDING →'}
+                  </span>
+                </Link>
+              )}
+            </div>
           </div>
-          {trip.destination && (
-            <div className="text-sm font-medium mt-1">{trip.destination}</div>
-          )}
 
           <div className="mt-4 pt-3 border-t-2 border-dashed border-white flex justify-between text-xs font-bold">
             <span>{formatDate(trip.start_date)}</span>
@@ -171,15 +176,6 @@ export default async function TripDetailPage({ params }: { params: { id: string 
           spent={mySpent}
           currency={trip.default_currency}
           lang={lang}
-        />
-
-        {/* Trophy podium — spending leaderboard with animated trophy */}
-        <SpendingPodium
-          tripId={trip.id}
-          rows={podiumRows}
-          currency={trip.default_currency}
-          lang={lang}
-          myMemberId={myMembership!.id}
         />
 
         {/* Members */}
