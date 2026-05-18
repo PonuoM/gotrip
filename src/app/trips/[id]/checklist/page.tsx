@@ -39,7 +39,10 @@ export default async function ChecklistPage({ params }: { params: { id: string }
       .from('checklists')
       .select(`
         id, title, is_shared, created_at,
-        checklist_items (id, title, description, member_id, is_done, sort_order)
+        checklist_items (
+          id, title, description, member_id, is_done, sort_order,
+          checklist_item_ticks (member_id, ticked_at)
+        )
       `)
       .eq('trip_id', params.id)
       .order('created_at', { ascending: true }),
@@ -87,6 +90,7 @@ export default async function ChecklistPage({ params }: { params: { id: string }
         <ChecklistClient
           tripId={params.id}
           canEdit={canEdit}
+          myMemberId={myMembership.id}
           checklists={checklists || []}
           members={membersHydrated}
           lang={lang}

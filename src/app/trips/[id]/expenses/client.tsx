@@ -4,6 +4,16 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
+import { t as translate, type TKey } from '@/lib/i18n'
+
+interface Split {
+  id: string
+  member_id: string | null
+  slot_label: string | null
+  share_amount: number
+  is_settled: boolean
+  settled_proof_url: string | null
+}
 
 interface Expense {
   id: string
@@ -14,11 +24,12 @@ interface Expense {
   paid_by: string | null
   paid_at: string
   notes: string | null
-  expense_splits: Array<{ member_id: string; share_amount: number; is_settled: boolean }>
+  receipt_url: string | null
+  expense_splits: Split[]
 }
 
 interface Member {
-  id: string  // trip_members.id
+  id: string
   role: string
   user_id: string
   user_profiles: { display_name: string } | null
@@ -53,11 +64,12 @@ interface Props {
   lang: 'th' | 'en'
 }
 
-import { t as translate, type TKey } from '@/lib/i18n'
 const pickCat = (c: Category | undefined, lang: 'th' | 'en') =>
   c ? (lang === 'th' ? c.label_th : c.label_en) : ''
 
 const CURRENCIES = ['THB', 'JPY', 'USD', 'EUR', 'KRW', 'TWD']
+
+// ====================================================================
 
 export function ExpensesClient(props: Props) {
   const { tripId, currency, budget, myMemberId, canEdit, expenses, members, categories, debts, lang } = props
@@ -65,68 +77,106 @@ export function ExpensesClient(props: Props) {
   const supabase = createClient()
   const t = (k: TKey) => translate(lang, k)
 
-  const [editing, setEditing] = useState<Partial<Expense> & { _splitWith?: string[] } | null>(null)
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-
   const categoryMap = useMemo(() => Object.fromEntries(categories.map(c => [c.id, c])), [categories])
-  const memberMap = useMemo(() => Object.fromEntries(members.map(m => [m.id, m])), [members])
+  const memberMap   = useMemo(() => Object.fromEntries(members.map(m => [m.id, m])), [members])
 
   const totalSpent = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
   const budgetPct = budget && budget > 0 ? Math.min(100, (totalSpent / budget) * 100) : 0
 
-  // Per-person summary: paid - owed
   const myBalance = useMemo(() => {
-    let paid = 0
-    let owed = 0
+    let paid = 0, owed = 0
     for (const exp of expenses) {
       if (exp.paid_by === myMemberId) paid += Number(exp.amount)
       const mine = exp.expense_splits.find(s => s.member_id === myMemberId)
-      if (mine && !mine.is_settled) owed += Number(mine.share_amount)
+      if (mine && !mine.is_settled && exp.paid_by !== myMemberId) owed += Number(mine.share_amount)
     }
     return paid - owed
   }, [expenses, myMemberId])
 
+  // ===== New / Edit form state =====
+  const [editing, setEditing] = useState<null | {
+    id?: string
+    description: string
+    amount: string
+    currency: string
+    category_id: string
+    paid_by: string
+    paid_at: string
+    notes: string
+    split_count: number
+    split_member_ids: (string | null)[]    // length = split_count, each = member id or null (ว่าง)
+    receipt_url: string | null
+    receipt_file?: File | null
+  }>(null)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
   const startNew = () => {
     setEditing({
-      id: undefined,
       description: '',
-      amount: 0,
+      amount: '',
       currency,
       category_id: 'food',
       paid_by: myMemberId,
       paid_at: new Date().toISOString().slice(0, 10),
-      _splitWith: members.map(m => m.id),
+      notes: '',
+      split_count: members.length || 1,
+      split_member_ids: members.map(m => m.id),  // first N slots = real members
+      receipt_url: null,
+      receipt_file: null,
     })
     setError('')
   }
 
   const startEdit = (e: Expense) => {
     setEditing({
-      ...e,
-      _splitWith: e.expense_splits.map(s => s.member_id),
+      id: e.id,
+      description: e.description,
+      amount: String(e.amount),
+      currency: e.currency,
+      category_id: e.category_id || 'food',
+      paid_by: e.paid_by || '',
+      paid_at: e.paid_at,
+      notes: e.notes || '',
+      split_count: e.expense_splits.length,
+      split_member_ids: e.expense_splits.map(s => s.member_id),
+      receipt_url: e.receipt_url,
+      receipt_file: null,
     })
     setError('')
   }
 
+  // ===== Save expense =====
   const save = async (ev: React.FormEvent) => {
     ev.preventDefault()
     if (!editing) return
     const amount = Number(editing.amount)
-    if (!editing.description?.trim() || !amount || amount <= 0) {
+    if (!editing.description.trim() || !amount || amount <= 0) {
       setError(t('exp.err_required'))
       return
     }
-    const splitMembers = editing._splitWith || []
-    if (splitMembers.length === 0) {
-      setError(t('exp.err_split'))
+    if (editing.split_count < 1) {
+      setError(lang === 'th' ? 'หารอย่างน้อย 1 คน' : 'Split must be ≥ 1 person')
       return
     }
 
     setSaving(true)
     setError('')
 
-    const share = +(amount / splitMembers.length).toFixed(2)
+    // Upload receipt to storage if a new file is attached
+    let receipt_url = editing.receipt_url
+    if (editing.receipt_file) {
+      const file = editing.receipt_file
+      const ext = file.name.split('.').pop() || 'bin'
+      const key = `${tripId}/receipts/${crypto.randomUUID()}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('trip-documents')
+        .upload(key, file, { contentType: file.type || 'application/octet-stream' })
+      if (upErr) { setError(upErr.message); setSaving(false); return }
+      receipt_url = key
+    }
+
+    const share = +(amount / editing.split_count).toFixed(2)
 
     const payload = {
       trip_id: tripId,
@@ -136,7 +186,8 @@ export function ExpensesClient(props: Props) {
       category_id: editing.category_id || null,
       paid_by: editing.paid_by || null,
       paid_at: editing.paid_at,
-      notes: editing.notes?.trim() || null,
+      notes: editing.notes.trim() || null,
+      receipt_url,
     }
 
     let expenseId = editing.id
@@ -150,27 +201,26 @@ export function ExpensesClient(props: Props) {
       expenseId = data!.id
     }
 
-    const splitRows = splitMembers.map(memberId => ({
+    // Build splits — payer's own row is auto-settled
+    const splits = editing.split_member_ids.map((mid, i) => ({
       expense_id: expenseId!,
-      member_id: memberId,
+      member_id: mid,
+      slot_label: mid ? null : (lang === 'th' ? `ว่าง ${i + 1}` : `Open ${i + 1}`),
       share_amount: share,
+      is_settled: mid !== null && mid === editing.paid_by,
     }))
-    const { error: splitErr } = await supabase.from('expense_splits').insert(splitRows)
+    const { error: splitErr } = await supabase.from('expense_splits').insert(splits)
     if (splitErr) return abort(splitErr.message)
 
     setEditing(null)
     setSaving(false)
     router.refresh()
 
-    function abort(msg: string) {
-      setError(msg)
-      setSaving(false)
-    }
+    function abort(msg: string) { setError(msg); setSaving(false) }
   }
 
   const remove = async (id: string) => {
     if (!confirm(t('exp.delete_confirm'))) return
-    // Splits cascade-delete via FK
     await supabase.from('expenses').delete().eq('id', id)
     router.refresh()
   }
@@ -214,19 +264,30 @@ export function ExpensesClient(props: Props) {
         </div>
       </div>
 
-      {/* Settle-up summary */}
       {debts.length > 0 && (
-        <SettleUpSection debts={debts} currency={currency} label={t('exp.settle_up')} />
+        <div className="mt-4">
+          <div className="text-xs font-black uppercase tracking-[2px] mb-2">{t('exp.settle_up')}</div>
+          <div className="space-y-2">
+            {debts.map((d, i) => (
+              <div key={i} className="card-base p-3 flex items-center justify-between">
+                <div className="text-sm font-bold">
+                  <span className="text-brand-red">{d.from_member_name}</span>
+                  <span className="text-gray-400 mx-2">→</span>
+                  <span className="text-green-700">{d.to_member_name}</span>
+                </div>
+                <div className="font-black">{formatCurrency(Number(d.amount), currency)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      {/* Add button */}
       {canEdit && !editing && (
         <button onClick={startNew} className="btn-primary w-full mt-6">
           {t('exp.new')}
         </button>
       )}
 
-      {/* Form */}
       {editing && (
         <ExpenseForm
           editing={editing}
@@ -246,18 +307,18 @@ export function ExpensesClient(props: Props) {
           {t('exp.all_expenses')} · {expenses.length}
         </div>
         {expenses.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 text-sm">
-            {t('exp.no_expenses')}
-          </div>
+          <div className="text-center py-8 text-gray-400 text-sm">{t('exp.no_expenses')}</div>
         ) : (
           <div className="space-y-2">
             {expenses.map(exp => (
               <ExpenseCard
                 key={exp.id}
+                tripId={tripId}
                 expense={exp}
                 category={exp.category_id ? categoryMap[exp.category_id] : null}
-                payer={exp.paid_by ? memberMap[exp.paid_by] : null}
                 memberMap={memberMap}
+                allMembers={members}
+                myMemberId={myMemberId}
                 canEdit={canEdit}
                 lang={lang}
                 onEdit={() => startEdit(exp)}
@@ -271,13 +332,18 @@ export function ExpensesClient(props: Props) {
   )
 }
 
-// ===== Expense card with expandable splits =====
+// ===== Expense card =====================================================
 
-function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdit, onDelete }: {
+function ExpenseCard({
+  tripId, expense, category, memberMap, allMembers, myMemberId, canEdit, lang,
+  onEdit, onDelete,
+}: {
+  tripId: string
   expense: Expense
   category: Category | null
-  payer: Member | undefined
   memberMap: Record<string, Member>
+  allMembers: Member[]
+  myMemberId: string
   canEdit: boolean
   lang: 'th' | 'en'
   onEdit: () => void
@@ -287,32 +353,58 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdi
   const supabase = createClient()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const [claimFor, setClaimFor] = useState<string | null>(null)  // split id we're assigning
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
   const t = (k: TKey) => translate(lang, k)
 
+  const payer = expense.paid_by ? memberMap[expense.paid_by] : null
   const settledCount = expense.expense_splits.filter(s => s.is_settled).length
   const allSettled = settledCount === expense.expense_splits.length && expense.expense_splits.length > 0
 
-  const toggleSplit = async (memberId: string, isSettled: boolean) => {
-    setBusy(memberId)
+  // unclaimed members for the "ว่าง" picker
+  const unclaimed = allMembers.filter(
+    m => !expense.expense_splits.some(s => s.member_id === m.id)
+  )
+
+  const toggleSplit = async (split: Split) => {
+    if (!split.member_id) return
+    setBusy(split.id)
     await supabase
       .from('expense_splits')
       .update({
-        is_settled: !isSettled,
-        settled_at: !isSettled ? new Date().toISOString() : null,
+        is_settled: !split.is_settled,
+        settled_at: !split.is_settled ? new Date().toISOString() : null,
       })
-      .eq('expense_id', expense.id)
-      .eq('member_id', memberId)
+      .eq('id', split.id)
     router.refresh()
     setBusy(null)
   }
 
+  const claim = async (splitId: string, memberId: string) => {
+    setBusy(splitId)
+    const { error } = await supabase.rpc('claim_expense_slot', {
+      p_split_id: splitId,
+      p_member_id: memberId,
+    })
+    if (error) alert(error.message)
+    setClaimFor(null)
+    router.refresh()
+    setBusy(null)
+  }
+
+  const viewReceipt = async () => {
+    if (!expense.receipt_url) return
+    if (receiptUrl) { window.open(receiptUrl, '_blank'); return }
+    const { data } = await supabase.storage.from('trip-documents').createSignedUrl(expense.receipt_url, 60)
+    if (data?.signedUrl) {
+      setReceiptUrl(data.signedUrl)
+      window.open(data.signedUrl, '_blank')
+    }
+  }
+
   return (
     <div className="card-base p-3">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full text-left flex items-start gap-2.5"
-      >
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full text-left flex items-start gap-2.5">
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0"
           style={{ backgroundColor: (category?.color || '#1A1A1A') + '20' }}
@@ -321,15 +413,16 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdi
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <div className="font-black text-sm leading-tight truncate">
+            <div className="font-black text-sm leading-tight truncate flex items-center gap-1">
               {expense.description}
+              {expense.receipt_url && <span title="receipt">📷</span>}
             </div>
             <div className="font-black text-sm shrink-0">
               {formatCurrency(Number(expense.amount), expense.currency)}
             </div>
           </div>
           <div className="text-[11px] text-gray-500 font-bold mt-0.5">
-            {t('exp.paid_by_label')} {payer?.user_profiles?.display_name || (lang === 'th' ? 'ไม่ทราบ' : 'Unknown')}
+            {t('exp.paid_by_label')} {payer?.user_profiles?.display_name || '?'}
             {' · '}{new Date(expense.paid_at).toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', { timeZone: 'Asia/Bangkok' })}
             {' · '}
             {allSettled
@@ -337,23 +430,103 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdi
               : `${settledCount}/${expense.expense_splits.length} ${t('exp.settled')}`}
             <span className="ml-1 text-gray-300">{open ? '▲' : '▼'}</span>
           </div>
+
+          {/* Avatar/slot pile (always visible) */}
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {expense.expense_splits.map(s => {
+              const mem = s.member_id ? memberMap[s.member_id] : null
+              const isMe = s.member_id === myMemberId
+              const initial = mem?.user_profiles?.display_name?.[0]?.toUpperCase() || '?'
+              if (!mem) {
+                return (
+                  <span key={s.id} className="text-[10px] font-bold border-2 border-dashed border-gray-300 text-gray-400 px-2 py-0.5 rounded-full">
+                    {lang === 'th' ? 'ว่าง' : 'Open'}
+                  </span>
+                )
+              }
+              return (
+                <span
+                  key={s.id}
+                  title={mem.user_profiles?.display_name || ''}
+                  className={`text-[10px] font-bold rounded-full w-6 h-6 inline-flex items-center justify-center border-2 ${
+                    s.is_settled
+                      ? 'bg-green-600 text-white border-green-700'
+                      : isMe
+                        ? 'bg-brand-red text-white border-brand-black'
+                        : 'bg-white text-brand-black border-gray-300'
+                  }`}
+                >
+                  {s.is_settled ? '✓' : initial}
+                </span>
+              )
+            })}
+          </div>
         </div>
       </button>
 
+      {/* Expanded body */}
       {open && (
         <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-500 mb-1">
             {t('exp.splits')}
           </div>
           {expense.expense_splits.map(s => {
-            const memberName = memberMap[s.member_id]?.user_profiles?.display_name || '?'
-            const isPayer = s.member_id === expense.paid_by
+            const mem = s.member_id ? memberMap[s.member_id] : null
+            const isPayer = s.member_id != null && s.member_id === expense.paid_by
+            const isMe = s.member_id === myMemberId
+            const memberName = mem?.user_profiles?.display_name || (lang === 'th' ? 'ว่าง' : 'Open slot')
+
+            // Empty slot row → "claim" / assign picker
+            if (!mem) {
+              return (
+                <div key={s.id} className="space-y-1">
+                  <div className="w-full flex items-center justify-between gap-2 p-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-4 h-4 rounded border-2 border-dashed border-gray-300" />
+                      <span className="text-xs font-bold text-gray-400 truncate">
+                        {s.slot_label || (lang === 'th' ? 'ว่าง' : 'Open')}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-gray-500">
+                        {formatCurrency(Number(s.share_amount), expense.currency)}
+                      </span>
+                      {canEdit && unclaimed.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setClaimFor(claimFor === s.id ? null : s.id)}
+                          className="text-[10px] font-black tracking-wider bg-brand-black text-white rounded-pill px-2 py-0.5"
+                        >
+                          {lang === 'th' ? 'ใส่ชื่อ' : 'CLAIM'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {claimFor === s.id && (
+                    <div className="flex flex-wrap gap-1 pl-2">
+                      {unclaimed.map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          disabled={busy === s.id}
+                          onClick={() => claim(s.id, m.id)}
+                          className="text-[10px] font-bold px-2 py-1 rounded-pill border-2 border-brand-black bg-white"
+                        >
+                          + {m.user_profiles?.display_name || '?'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
             return (
               <button
-                key={s.member_id}
+                key={s.id}
                 type="button"
-                disabled={busy === s.member_id || isPayer}
-                onClick={() => toggleSplit(s.member_id, s.is_settled)}
+                disabled={busy === s.id || isPayer}
+                onClick={() => toggleSplit(s)}
                 className={`w-full flex items-center justify-between gap-2 p-2 rounded-lg border-2 transition ${
                   isPayer
                     ? 'border-gray-100 bg-gray-50 cursor-default'
@@ -369,7 +542,7 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdi
                     {s.is_settled && '✓'}
                   </div>
                   <span className={`text-xs font-bold ${s.is_settled ? 'line-through text-gray-400' : ''}`}>
-                    {memberName}{isPayer && ` ${t('exp.paid_label')}`}
+                    {memberName}{isPayer && ` ${t('exp.paid_label')}`}{isMe && !isPayer && ' ★'}
                   </span>
                 </div>
                 <span className={`text-xs font-black ${s.is_settled ? 'text-gray-400' : ''}`}>
@@ -378,21 +551,29 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdi
               </button>
             )
           })}
+
+          {expense.receipt_url && (
+            <button
+              type="button"
+              onClick={viewReceipt}
+              className="w-full mt-2 text-[11px] font-bold text-brand-red border-2 border-brand-red/30 rounded-pill py-1.5"
+            >
+              📷 {lang === 'th' ? 'ดูใบเสร็จ' : 'View receipt'}
+            </button>
+          )}
+
+          {expense.notes && (
+            <div className="mt-2 text-[11px] text-gray-600 italic">"{expense.notes}"</div>
+          )}
         </div>
       )}
 
       {canEdit && (
         <div className="flex justify-end gap-1 mt-2 pt-2 border-t border-gray-100">
-          <button
-            onClick={onEdit}
-            className="text-[10px] font-black tracking-wider text-gray-600 border border-gray-200 rounded-pill px-2 py-1"
-          >
+          <button onClick={onEdit} className="text-[10px] font-black tracking-wider text-gray-600 border border-gray-200 rounded-pill px-2 py-1">
             EDIT
           </button>
-          <button
-            onClick={onDelete}
-            className="text-[10px] font-black tracking-wider text-brand-red border border-brand-red/30 rounded-pill px-2 py-1"
-          >
+          <button onClick={onDelete} className="text-[10px] font-black tracking-wider text-brand-red border border-brand-red/30 rounded-pill px-2 py-1">
             ✗
           </button>
         </div>
@@ -401,55 +582,42 @@ function ExpenseCard({ expense, category, payer, memberMap, canEdit, lang, onEdi
   )
 }
 
-// ===== Settle-up =====
+// ===== Expense form ======================================================
 
-function SettleUpSection({ debts, currency, label }: { debts: Debt[]; currency: string; label: string }) {
-  return (
-    <div className="mt-4">
-      <div className="text-xs font-black uppercase tracking-[2px] mb-2">{label}</div>
-      <div className="space-y-2">
-        {debts.map((d, i) => (
-          <div key={i} className="card-base p-3 flex items-center justify-between">
-            <div className="text-sm font-bold">
-              <span className="text-brand-red">{d.from_member_name}</span>
-              <span className="text-gray-400 mx-2">→</span>
-              <span className="text-green-700">{d.to_member_name}</span>
-            </div>
-            <div className="font-black">{formatCurrency(Number(d.amount), currency)}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ===== Form =====
-
-function ExpenseForm({ editing, categories, members, saving, lang, onChange, onCancel, onSubmit }: {
-  editing: Partial<Expense> & { _splitWith?: string[] }
+function ExpenseForm({
+  editing, categories, members, saving, lang, onChange, onCancel, onSubmit,
+}: {
+  editing: any
   categories: Category[]
   members: Member[]
   saving: boolean
   lang: 'th' | 'en'
-  onChange: (e: Partial<Expense> & { _splitWith?: string[] }) => void
+  onChange: (e: any) => void
   onCancel: () => void
   onSubmit: (e: React.FormEvent) => void
 }) {
   const t = (k: TKey) => translate(lang, k)
-  const upd = (patch: Partial<Expense> & { _splitWith?: string[] }) => onChange({ ...editing, ...patch })
-  const splitWith = editing._splitWith || []
+  const upd = (patch: any) => onChange({ ...editing, ...patch })
 
-  const toggleSplit = (memberId: string) => {
-    const next = splitWith.includes(memberId)
-      ? splitWith.filter(id => id !== memberId)
-      : [...splitWith, memberId]
-    upd({ _splitWith: next })
+  const setSplitCount = (n: number) => {
+    const count = Math.max(1, Math.min(50, n))
+    const prev: (string | null)[] = editing.split_member_ids
+    const next: (string | null)[] = []
+    for (let i = 0; i < count; i++) {
+      // Keep prior assignment, fill new slots with next available member or null
+      next[i] = prev[i] !== undefined ? prev[i] : (members[i]?.id ?? null)
+    }
+    upd({ split_count: count, split_member_ids: next })
   }
 
-  const splitAll = () => upd({ _splitWith: members.map(m => m.id) })
+  const setSlotMember = (idx: number, memberId: string | null) => {
+    const next = [...editing.split_member_ids]
+    next[idx] = memberId
+    upd({ split_member_ids: next })
+  }
 
-  const sharePreview = editing.amount && splitWith.length > 0
-    ? Number(editing.amount) / splitWith.length
+  const sharePreview = editing.amount && editing.split_count
+    ? Number(editing.amount) / editing.split_count
     : 0
 
   return (
@@ -464,10 +632,8 @@ function ExpenseForm({ editing, categories, members, saving, lang, onChange, onC
       <label className="block">
         <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.what')}</div>
         <input
-          type="text"
-          required
-          maxLength={120}
-          value={editing.description || ''}
+          type="text" required maxLength={120}
+          value={editing.description}
           onChange={e => upd({ description: e.target.value })}
           placeholder={t('exp.what_ph')}
           className="w-full border-2 border-brand-black rounded-lg py-2 px-3 font-bold"
@@ -478,19 +644,16 @@ function ExpenseForm({ editing, categories, members, saving, lang, onChange, onC
         <label className="col-span-2 block">
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.amount')}</div>
           <input
-            type="number"
-            required
-            min="0.01"
-            step="0.01"
-            value={editing.amount || ''}
-            onChange={e => upd({ amount: Number(e.target.value) })}
+            type="number" required min="0.01" step="0.01"
+            value={editing.amount}
+            onChange={e => upd({ amount: e.target.value })}
             className="w-full border-2 border-brand-black rounded-lg py-2 px-3 font-bold text-lg"
           />
         </label>
         <label className="block">
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('newtrip.curr')}</div>
           <select
-            value={editing.currency || 'THB'}
+            value={editing.currency}
             onChange={e => upd({ currency: e.target.value })}
             className="w-full border-2 border-brand-black rounded-lg py-2 px-2 font-bold"
           >
@@ -504,8 +667,7 @@ function ExpenseForm({ editing, categories, members, saving, lang, onChange, onC
         <div className="flex flex-wrap gap-1.5">
           {categories.map(c => (
             <button
-              key={c.id}
-              type="button"
+              key={c.id} type="button"
               onClick={() => upd({ category_id: c.id })}
               className={`text-xs font-bold px-2 py-1 rounded-pill border-2 ${
                 editing.category_id === c.id
@@ -523,15 +685,13 @@ function ExpenseForm({ editing, categories, members, saving, lang, onChange, onC
         <label className="block">
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.paid_by')}</div>
           <select
-            value={editing.paid_by || ''}
-            onChange={e => upd({ paid_by: e.target.value || null })}
+            value={editing.paid_by}
+            onChange={e => upd({ paid_by: e.target.value })}
             className="w-full border-2 border-brand-black rounded-lg py-2 px-2 font-bold text-sm"
           >
             <option value="">—</option>
             {members.map(m => (
-              <option key={m.id} value={m.id}>
-                {m.user_profiles?.display_name || (lang === 'th' ? 'ไม่ทราบ' : 'Unknown')}
-              </option>
+              <option key={m.id} value={m.id}>{m.user_profiles?.display_name || '?'}</option>
             ))}
           </select>
         </label>
@@ -539,48 +699,74 @@ function ExpenseForm({ editing, categories, members, saving, lang, onChange, onC
           <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.date')}</div>
           <input
             type="date"
-            value={editing.paid_at?.slice(0, 10) || ''}
+            value={editing.paid_at.slice(0, 10)}
             onChange={e => upd({ paid_at: e.target.value })}
             className="w-full border-2 border-brand-black rounded-lg py-2 px-2 font-bold text-sm"
           />
         </label>
       </div>
 
+      {/* Split count + slot assignment */}
       <div>
         <div className="flex justify-between items-center mb-1">
-          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600">{t('exp.split_with')}</div>
-          <button type="button" onClick={splitAll} className="text-[10px] font-black text-brand-red">
-            {t('exp.all_btn')}
-          </button>
+          <div className="text-[9px] font-black tracking-[1.5px] text-gray-600">
+            {lang === 'th' ? 'หารกี่คน' : 'SPLIT COUNT'}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => setSplitCount(editing.split_count - 1)}
+              className="w-7 h-7 rounded-full border-2 border-brand-black font-black">−</button>
+            <span className="font-black text-lg w-8 text-center">{editing.split_count}</span>
+            <button type="button" onClick={() => setSplitCount(editing.split_count + 1)}
+              className="w-7 h-7 rounded-full border-2 border-brand-black font-black">+</button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {members.map(m => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => toggleSplit(m.id)}
-              className={`text-xs font-bold px-2 py-1 rounded-pill border-2 ${
-                splitWith.includes(m.id)
-                  ? 'border-brand-red bg-brand-red text-white'
-                  : 'border-gray-200 bg-white text-gray-500'
-              }`}
-            >
-              {m.user_profiles?.display_name || '?'}
-            </button>
+        <div className="space-y-1">
+          {editing.split_member_ids.map((mid: string | null, i: number) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[10px] font-black tracking-wider text-gray-500 w-5">#{i + 1}</span>
+              <select
+                value={mid || ''}
+                onChange={e => setSlotMember(i, e.target.value || null)}
+                className="flex-1 border border-gray-300 rounded-lg py-1.5 px-2 font-bold text-xs"
+              >
+                <option value="">— {lang === 'th' ? 'ว่าง (ยังไม่มีคน)' : 'Open (no one yet)'} —</option>
+                {members
+                  .filter(m => m.id === mid || !editing.split_member_ids.includes(m.id))
+                  .map(m => (
+                    <option key={m.id} value={m.id}>{m.user_profiles?.display_name || '?'}</option>
+                  ))}
+              </select>
+            </div>
           ))}
         </div>
         {sharePreview > 0 && (
-          <div className="text-[10px] text-gray-500 font-bold mt-2">
-            ↳ {formatCurrency(sharePreview, editing.currency || 'THB')} {t('exp.each')} ({splitWith.length} {t('exp.people')})
+          <div className="text-[10px] text-gray-500 font-bold mt-1.5">
+            ↳ {formatCurrency(sharePreview, editing.currency)} {t('exp.each')}
           </div>
         )}
       </div>
+
+      {/* Receipt upload */}
+      <label className="block">
+        <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">
+          📷 {lang === 'th' ? 'ใบเสร็จ (ไม่จำเป็น)' : 'RECEIPT (optional)'}
+          {editing.receipt_url && !editing.receipt_file && (
+            <span className="ml-1.5 text-green-700">{lang === 'th' ? '· มีอยู่แล้ว' : '· already attached'}</span>
+          )}
+        </div>
+        <input
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={e => upd({ receipt_file: e.target.files?.[0] || null })}
+          className="w-full text-xs font-bold border border-dashed border-gray-300 rounded-lg p-2"
+        />
+      </label>
 
       <label className="block">
         <div className="text-[9px] font-black tracking-[1.5px] text-gray-600 mb-1">{t('exp.notes')}</div>
         <textarea
           rows={2}
-          value={editing.notes || ''}
+          value={editing.notes}
           onChange={e => upd({ notes: e.target.value })}
           className="w-full border-2 border-brand-black rounded-lg py-2 px-3 font-bold text-sm"
         />

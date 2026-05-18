@@ -43,8 +43,8 @@ export default async function TripExpensesPage({ params }: { params: { id: strin
     supabase
       .from('expenses')
       .select(`
-        id, description, amount, currency, category_id, paid_by, paid_at, notes,
-        expense_splits (member_id, share_amount, is_settled)
+        id, description, amount, currency, category_id, paid_by, paid_at, notes, receipt_url,
+        expense_splits (id, member_id, slot_label, share_amount, is_settled, settled_proof_url)
       `)
       .eq('trip_id', params.id)
       .order('paid_at', { ascending: false })

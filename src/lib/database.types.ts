@@ -162,15 +162,30 @@ export type Database = {
         Row: {
           id: string
           expense_id: string
-          member_id: string
+          member_id: string | null            // nullable now (placeholder slot)
+          slot_label: string | null           // human label until claimed
           share_amount: number
           is_settled: boolean
           settled_at: string | null
+          settled_proof_url: string | null
         }
         Insert: Omit<Database['public']['Tables']['expense_splits']['Row'], 'id'> & {
           id?: string
         }
         Update: Partial<Database['public']['Tables']['expense_splits']['Insert']>
+      }
+      checklist_item_ticks: {
+        Row: {
+          id: string
+          item_id: string
+          member_id: string
+          ticked_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['checklist_item_ticks']['Row'], 'id' | 'ticked_at'> & {
+          id?: string
+          ticked_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['checklist_item_ticks']['Insert']>
       }
       trip_invites: {
         Row: {
@@ -271,6 +286,10 @@ export type Database = {
       approve_trip_member: {
         Args: { p_member_id: string }
         Returns: { approved: boolean; trip_id: string }
+      }
+      claim_expense_slot: {
+        Args: { p_split_id: string; p_member_id: string }
+        Returns: { claimed: boolean; split_id: string; member_id: string }
       }
       get_invite_preview: {
         Args: { p_code: string }
